@@ -38,3 +38,6 @@ pip-delete-this-directory.txt
 
 # env file for python-dotenv
 .env
+
+# development venv
+.venv
