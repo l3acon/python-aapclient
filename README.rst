@@ -8,14 +8,13 @@ python-aapclient is a command-line client for Ansible Automation Platform (AAP) 
 
 This project is modeled after python-openstackclient and follows similar patterns for command structure and organization.
 
+⚠️  This tool is under active development, features may not work entirely or as expected.  Use at your own risk!! ⚠️
+
 Features
 ========
 
 * Complete CRUD operations for AAP resources
-* Support for AAP 2.4+ and AAP 2.5+ (multi-component architecture)
 * Automatic API version detection
-* Command-line interface similar to OpenStack client
-* Extensible plugin architecture
 
 Installation
 ============
@@ -27,9 +26,21 @@ Installation
 Configuration
 =============
 
-Configure AAP connection using either a ``.env`` file or environment variables.
+Configure the AAP connection using either environment variables or an ``.env`` file.  Connection information may also be passed as command-line arguments.
 
-Option 1: .env file (Recommended)
+Option 2: Environment variables (Recommended)
+---------------------------------------------
+
+.. code-block:: bash
+
+    export AAP_HOST=https://your-aap-host.com
+    # use token authentication
+    export AAP_TOKEN=your-token
+    # OR use user authentication
+    export AAP_USERNAME=your-username
+    export AAP_PASSWORD=your-password
+
+Option 2: .env file
 ----------------------------------
 
 Create a ``.env`` file in your project directory:
@@ -55,17 +66,6 @@ Example ``.env`` file:
     AAP_VERIFY_SSL=false  # For self-signed certificates
     AAP_CA_BUNDLE=/path/to/ca-bundle.crt
     AAP_TIMEOUT=60  # Request timeout in seconds
-
-Option 2: Environment variables
---------------------------------
-
-.. code-block:: bash
-
-    export AAP_HOST=https://your-aap-host.com
-    export AAP_USERNAME=your-username
-    export AAP_PASSWORD=your-password
-    # OR use token authentication
-    export AAP_TOKEN=your-token
 
 Usage
 =====
@@ -101,25 +101,10 @@ Controller Commands
 -------------------
 
 * ``aap project`` - Manage projects
-* ``aap organization`` - Manage organizations  
 * ``aap inventory`` - Manage inventories
 * ``aap credential`` - Manage credentials
-* ``aap job-template`` - Manage job templates
+* ``aap template`` - Manage job templates
 * ``aap job`` - Manage and monitor jobs
-* ``aap team`` - Manage teams
-* ``aap user`` - Manage users
-
-EDA Commands
-------------
-
-* ``aap eda-rulebook`` - Manage EDA rulebooks
-* ``aap eda-activation`` - Manage EDA activations
-
-Galaxy Commands
----------------
-
-* ``aap galaxy-collection`` - Manage Galaxy collections
-* ``aap galaxy-namespace`` - Manage Galaxy namespaces
 
 Each resource supports standard CRUD operations where applicable:
 
@@ -128,15 +113,6 @@ Each resource supports standard CRUD operations where applicable:
 * ``create`` - Create a new resource
 * ``set`` - Update an existing resource
 * ``delete`` - Delete a resource
-
-Contributing
-============
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
 
 License
 =======
