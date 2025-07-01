@@ -218,6 +218,48 @@ class Client:
         """Get job output"""
         return self.get(f'jobs/{job_id}/stdout/')
 
+    # Credentials
+    def list_credentials(self, **params) -> Dict[str, Any]:
+        """List credentials"""
+        return self.get('credentials/', params=params)
+    
+    def get_credential(self, credential_id: int) -> Dict[str, Any]:
+        """Get a specific credential"""
+        return self.get(f'credentials/{credential_id}/')
+    
+    def create_credential(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new credential"""
+        return self.post('credentials/', data=data)
+    
+    def update_credential(self, credential_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update a credential"""
+        return self.patch(f'credentials/{credential_id}/', data=data)
+    
+    def delete_credential(self, credential_id: int) -> None:
+        """Delete a credential"""
+        self.delete(f'credentials/{credential_id}/')
+
+    # Inventories
+    def list_inventories(self, **params) -> Dict[str, Any]:
+        """List inventories"""
+        return self.get('inventories/', params=params)
+    
+    def get_inventory(self, inventory_id: int) -> Dict[str, Any]:
+        """Get a specific inventory"""
+        return self.get(f'inventories/{inventory_id}/')
+    
+    def create_inventory(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new inventory"""
+        return self.post('inventories/', data=data)
+    
+    def update_inventory(self, inventory_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an inventory"""
+        return self.patch(f'inventories/{inventory_id}/', data=data)
+    
+    def delete_inventory(self, inventory_id: int) -> None:
+        """Delete an inventory"""
+        self.delete(f'inventories/{inventory_id}/')
+
 
 def make_client(instance):
     """Factory function for creating client instances"""

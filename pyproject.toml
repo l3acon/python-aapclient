@@ -44,9 +44,11 @@ eda = "aapclient.eda.client"
 galaxy = "aapclient.galaxy.client"
 
 [project.entry-points."aap.common"]
-ping = "aapclient.common.ping:Ping"
 
 [project.entry-points."aap.controller.v2"]
+# Common commands
+ping = "aapclient.common.ping:Ping"
+
 # Projects
 project_create = "aapclient.controller.v2.project:CreateProject"
 project_delete = "aapclient.controller.v2.project:DeleteProject"
