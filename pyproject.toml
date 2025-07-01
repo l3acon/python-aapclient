@@ -1,0 +1,129 @@
+[build-system]
+requires = ["pbr>=6.1.1"]
+build-backend = "pbr.build"
+
+[project]
+name = "python-aapclient"
+description = "Ansible Automation Platform Command-line Client"
+authors = [
+    {name = "Chris Edillon", email = "jce@redhat.com"},
+]
+readme = {file = "README.rst", content-type = "text/x-rst"}
+license = {text = "Apache-2.0"}
+dynamic = ["version", "dependencies"]
+requires-python = ">=3.10"
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Homepage = "https://github.com/jce-redhat/python-aapclient"
+Repository = "https://github.com/jce-redhat/python-aapclient"
+
+[project.scripts]
+aap = "aapclient.shell:main"
+
+[project.entry-points."aap.cli"]
+command_list = "aapclient.common.module:ListCommand"
+module_list = "aapclient.common.module:ListModule"
+
+[project.entry-points."aap.cli.base"]
+controller = "aapclient.controller.client"
+eda = "aapclient.eda.client"
+galaxy = "aapclient.galaxy.client"
+
+[project.entry-points."aap.common"]
+ping = "aapclient.common.ping:Ping"
+
+[project.entry-points."aap.controller.v2"]
+# Projects
+project_create = "aapclient.controller.v2.project:CreateProject"
+project_delete = "aapclient.controller.v2.project:DeleteProject"
+project_list = "aapclient.controller.v2.project:ListProject"
+project_show = "aapclient.controller.v2.project:ShowProject"
+project_set = "aapclient.controller.v2.project:SetProject"
+
+# Organizations
+organization_create = "aapclient.controller.v2.organization:CreateOrganization"
+organization_delete = "aapclient.controller.v2.organization:DeleteOrganization"
+organization_list = "aapclient.controller.v2.organization:ListOrganization"
+organization_show = "aapclient.controller.v2.organization:ShowOrganization"
+organization_set = "aapclient.controller.v2.organization:SetOrganization"
+
+# Inventories
+inventory_create = "aapclient.controller.v2.inventory:CreateInventory"
+inventory_delete = "aapclient.controller.v2.inventory:DeleteInventory"
+inventory_list = "aapclient.controller.v2.inventory:ListInventory"
+inventory_show = "aapclient.controller.v2.inventory:ShowInventory"
+inventory_set = "aapclient.controller.v2.inventory:SetInventory"
+
+# Credentials
+credential_create = "aapclient.controller.v2.credential:CreateCredential"
+credential_delete = "aapclient.controller.v2.credential:DeleteCredential"
+credential_list = "aapclient.controller.v2.credential:ListCredential"
+credential_show = "aapclient.controller.v2.credential:ShowCredential"
+credential_set = "aapclient.controller.v2.credential:SetCredential"
+
+# Job Templates (using "template" commands for brevity)
+template_create = "aapclient.controller.v2.job_template:CreateJobTemplate"
+template_delete = "aapclient.controller.v2.job_template:DeleteJobTemplate"
+template_list = "aapclient.controller.v2.job_template:ListJobTemplate"
+template_show = "aapclient.controller.v2.job_template:ShowJobTemplate"
+template_set = "aapclient.controller.v2.job_template:SetJobTemplate"
+template_launch = "aapclient.controller.v2.job_template:LaunchJobTemplate"
+
+# Jobs
+job_list = "aapclient.controller.v2.job:ListJob"
+job_show = "aapclient.controller.v2.job:ShowJob"
+job_cancel = "aapclient.controller.v2.job:CancelJob"
+job_relaunch = "aapclient.controller.v2.job:RelaunchJob"
+job_output = "aapclient.controller.v2.job:ShowJobOutput"
+
+# Teams
+team_create = "aapclient.controller.v2.team:CreateTeam"
+team_delete = "aapclient.controller.v2.team:DeleteTeam"
+team_list = "aapclient.controller.v2.team:ListTeam"
+team_show = "aapclient.controller.v2.team:ShowTeam"
+team_set = "aapclient.controller.v2.team:SetTeam"
+
+# Users
+user_create = "aapclient.controller.v2.user:CreateUser"
+user_delete = "aapclient.controller.v2.user:DeleteUser"
+user_list = "aapclient.controller.v2.user:ListUser"
+user_show = "aapclient.controller.v2.user:ShowUser"
+user_set = "aapclient.controller.v2.user:SetUser"
+
+[project.entry-points."aap.eda.v1"]
+# EDA Rulebooks
+eda_rulebook_list = "aapclient.eda.v1.rulebook:ListRulebook"
+eda_rulebook_show = "aapclient.eda.v1.rulebook:ShowRulebook"
+
+# EDA Activations
+eda_activation_list = "aapclient.eda.v1.activation:ListActivation"
+eda_activation_show = "aapclient.eda.v1.activation:ShowActivation"
+eda_activation_restart = "aapclient.eda.v1.activation:RestartActivation"
+
+[project.entry-points."aap.galaxy.v1"]
+# Galaxy Collections
+galaxy_collection_list = "aapclient.galaxy.v1.collection:ListCollection"
+galaxy_collection_show = "aapclient.galaxy.v1.collection:ShowCollection"
+
+# Galaxy Namespaces
+galaxy_namespace_list = "aapclient.galaxy.v1.namespace:ListNamespace"
+galaxy_namespace_show = "aapclient.galaxy.v1.namespace:ShowNamespace"
+
+[tool.pbr]
+readme = "README.rst"
+skip_authors = true
+skip_changelog = true 
