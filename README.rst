@@ -84,7 +84,7 @@ Basic commands:
     aap project create myproject --scm-type git --scm-url https://github.com/user/repo.git
 
     # Launch a job template
-    aap job template launch "My Job Template" --extra-vars key=value
+    aap template launch "My Job Template" --extra-vars key=value
 
     # List jobs
     aap job list
