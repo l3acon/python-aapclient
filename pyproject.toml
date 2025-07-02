@@ -50,6 +50,7 @@ gateway = "aapclient.gateway.client"
 [project.entry-points."aap.controller.v2"]
 # Common commands
 ping = "aapclient.common.ping:Ping"
+whoami = "aapclient.gateway.v1.whoami:Whoami"
 
 # Projects
 project_create = "aapclient.controller.v2.project:CreateProject"
@@ -94,12 +95,12 @@ job_cancel = "aapclient.controller.v2.job:CancelJob"
 job_relaunch = "aapclient.controller.v2.job:RelaunchJob"
 job_output = "aapclient.controller.v2.job:ShowJobOutput"
 
-# Teams
-team_create = "aapclient.controller.v2.team:CreateTeam"
-team_delete = "aapclient.controller.v2.team:DeleteTeam"
-team_list = "aapclient.controller.v2.team:ListTeam"
-team_show = "aapclient.controller.v2.team:ShowTeam"
-team_set = "aapclient.controller.v2.team:SetTeam"
+# Teams (using Gateway API for AAP 2.5+)
+team_create = "aapclient.gateway.v1.team:CreateTeam"
+team_delete = "aapclient.gateway.v1.team:DeleteTeam"
+team_list = "aapclient.gateway.v1.team:ListTeam"
+team_show = "aapclient.gateway.v1.team:ShowTeam"
+team_set = "aapclient.gateway.v1.team:SetTeam"
 
 # Users (using Gateway API for AAP 2.5+)
 user_create = "aapclient.gateway.v1.user:CreateUser"

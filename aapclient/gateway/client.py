@@ -192,6 +192,11 @@ class Client:
         """Delete a team"""
         self.delete(f'teams/{team_id}/')
 
+    # Current user information
+    def me(self) -> Dict[str, Any]:
+        """Get current user information"""
+        return self.get('me/')
+
 
 def make_client(instance):
     """Factory function for creating client instances"""
