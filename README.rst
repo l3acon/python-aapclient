@@ -28,7 +28,7 @@ Configuration
 
 Configure the AAP connection using either environment variables or an ``.env`` file.  Connection information may also be passed as command-line arguments.
 
-Option 2: Environment variables (Recommended)
+Option 1: Environment variables (Recommended)
 ---------------------------------------------
 
 .. code-block:: bash
