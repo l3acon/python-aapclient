@@ -105,7 +105,7 @@ class ShowJob(ShowOne):
             'id', 'name', 'description', 'status', 'failed', 'started', 'finished',
             'elapsed', 'job_template', 'job_type', 'inventory', 'project', 'playbook',
             'forks', 'limit', 'verbosity', 'extra_vars', 'job_tags', 'skip_tags',
-            'created', 'modified', 'created_by', 'modified_by'
+            'execution_node', 'controller_node', 'launched_by', 'created', 'modified', 'created_by', 'modified_by'
         ]
         
         for field in fields:
@@ -114,6 +114,12 @@ class ShowJob(ShowOne):
                 value = utils.format_datetime(value)
             elif field == 'elapsed':
                 value = utils.format_duration(data.get('started'), data.get('finished'))
+            elif field == 'launched_by':
+                # Format launched_by data to show user name
+                if isinstance(value, dict) and 'name' in value:
+                    value = value['name']
+                elif value is None or value == '':
+                    value = 'N/A'
             elif isinstance(value, bool):
                 value = str(value)
             elif value is None:
