@@ -27,6 +27,7 @@ class ClientManager:
         self._controller = None
         self._eda = None
         self._galaxy = None
+        self._gateway = None
 
     @property
     def controller(self):
@@ -50,4 +51,12 @@ class ClientManager:
         if self._galaxy is None:
             from aapclient.galaxy.client import Client
             self._galaxy = Client(self.config)
-        return self._galaxy 
+        return self._galaxy
+
+    @property
+    def gateway(self):
+        """Get Gateway API client"""
+        if self._gateway is None:
+            from aapclient.gateway.client import Client
+            self._gateway = Client(self.config)
+        return self._gateway 

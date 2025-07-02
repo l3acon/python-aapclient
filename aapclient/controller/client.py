@@ -99,7 +99,20 @@ class Client:
                 timeout=self.config.timeout
             )
             resp.raise_for_status()
-            return resp.json()
+            
+            # DELETE requests often return empty responses
+            if method.upper() == 'DELETE':
+                if resp.text.strip():
+                    try:
+                        return resp.json()
+                    except ValueError:
+                        # If we can't parse JSON, just return an empty dict
+                        return {}
+                else:
+                    # Empty response is expected for DELETE
+                    return {}
+            else:
+                return resp.json()
         except requests.exceptions.RequestException as e:
             raise ControllerClientError(f"API request failed: {e}")
     
@@ -121,14 +134,7 @@ class Client:
     
     def delete(self, endpoint: str) -> None:
         """DELETE request"""
-        try:
-            self._make_request('DELETE', endpoint)
-        except ControllerClientError as e:
-            # Some DELETE operations might return empty responses
-            if "JSONDecodeError" in str(e):
-                pass  # This is expected for successful DELETE operations
-            else:
-                raise
+        self._make_request('DELETE', endpoint)
     
     def ping(self) -> Dict[str, Any]:
         """Ping the API to check connectivity"""
@@ -259,6 +265,27 @@ class Client:
     def delete_inventory(self, inventory_id: int) -> None:
         """Delete an inventory"""
         self.delete(f'inventories/{inventory_id}/')
+
+    # Users
+    def list_users(self, **params) -> Dict[str, Any]:
+        """List users"""
+        return self.get('users/', params=params)
+    
+    def get_user(self, user_id: int) -> Dict[str, Any]:
+        """Get a specific user"""
+        return self.get(f'users/{user_id}/')
+    
+    def create_user(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new user"""
+        return self.post('users/', data=data)
+    
+    def update_user(self, user_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update a user"""
+        return self.patch(f'users/{user_id}/', data=data)
+    
+    def delete_user(self, user_id: int) -> None:
+        """Delete a user"""
+        self.delete(f'users/{user_id}/')
 
 
 def make_client(instance):

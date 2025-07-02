@@ -43,6 +43,7 @@ module_list = "aapclient.common.module:ListModule"
 controller = "aapclient.controller.client"
 eda = "aapclient.eda.client"
 galaxy = "aapclient.galaxy.client"
+gateway = "aapclient.gateway.client"
 
 [project.entry-points."aap.common"]
 
@@ -57,12 +58,12 @@ project_list = "aapclient.controller.v2.project:ListProject"
 project_show = "aapclient.controller.v2.project:ShowProject"
 project_set = "aapclient.controller.v2.project:SetProject"
 
-# Organizations
-organization_create = "aapclient.controller.v2.organization:CreateOrganization"
-organization_delete = "aapclient.controller.v2.organization:DeleteOrganization"
-organization_list = "aapclient.controller.v2.organization:ListOrganization"
-organization_show = "aapclient.controller.v2.organization:ShowOrganization"
-organization_set = "aapclient.controller.v2.organization:SetOrganization"
+# Organizations (using Gateway API for AAP 2.5+)
+organization_create = "aapclient.gateway.v1.organization:CreateOrganization"
+organization_delete = "aapclient.gateway.v1.organization:DeleteOrganization"
+organization_list = "aapclient.gateway.v1.organization:ListOrganization"
+organization_show = "aapclient.gateway.v1.organization:ShowOrganization"
+organization_set = "aapclient.gateway.v1.organization:SetOrganization"
 
 # Inventories
 inventory_create = "aapclient.controller.v2.inventory:CreateInventory"
@@ -100,12 +101,12 @@ team_list = "aapclient.controller.v2.team:ListTeam"
 team_show = "aapclient.controller.v2.team:ShowTeam"
 team_set = "aapclient.controller.v2.team:SetTeam"
 
-# Users
-user_create = "aapclient.controller.v2.user:CreateUser"
-user_delete = "aapclient.controller.v2.user:DeleteUser"
-user_list = "aapclient.controller.v2.user:ListUser"
-user_show = "aapclient.controller.v2.user:ShowUser"
-user_set = "aapclient.controller.v2.user:SetUser"
+# Users (using Gateway API for AAP 2.5+)
+user_create = "aapclient.gateway.v1.user:CreateUser"
+user_delete = "aapclient.gateway.v1.user:DeleteUser"
+user_list = "aapclient.gateway.v1.user:ListUser"
+user_show = "aapclient.gateway.v1.user:ShowUser"
+user_set = "aapclient.gateway.v1.user:SetUser"
 
 [project.entry-points."aap.eda.v1"]
 # EDA Rulebooks
