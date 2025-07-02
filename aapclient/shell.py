@@ -16,7 +16,7 @@
 """AAP Command-line interface"""
 
 import sys
-import pkg_resources
+from importlib.metadata import version, PackageNotFoundError
 
 from cliff.app import App
 from cliff.commandmanager import CommandManager
@@ -45,8 +45,8 @@ class AAPShell(App):
     def _get_version(self):
         """Get package version"""
         try:
-            return pkg_resources.get_distribution('aapclient').version
-        except pkg_resources.DistributionNotFound:
+            return version('python-aapclient')
+        except PackageNotFoundError:
             return '0.0.0-dev'
 
     def build_option_parser(self, description, version):
