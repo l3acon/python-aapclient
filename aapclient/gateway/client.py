@@ -197,6 +197,10 @@ class Client:
         """Get current user information"""
         return self.get('me/')
 
+    def ping(self) -> Dict[str, Any]:
+        """Ping the Gateway API to check connectivity"""
+        return self.get('ping/')
+
 
 def make_client(instance):
     """Factory function for creating client instances"""

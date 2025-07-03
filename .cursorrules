@@ -69,6 +69,24 @@ python-aapclient/
 **Change**: Converted README.rst to README.md with proper Markdown formatting
 **Updated**: pyproject.toml and setup.cfg to reference new README.md
 
+### 5. Enhanced Ping Command (Completed)
+
+**Problem**: Original ping command only checked Controller API endpoint
+**Solution**: Enhanced ping command to check both Controller and Gateway API endpoints:
+- Added `ping()` method to gateway client
+- Modified ping command to query both APIs simultaneously
+- Shows overall status plus detailed info for each API
+- Handles partial failures gracefully (e.g., one API up, other down)
+- Clear visual separation between API results
+- Uses Gateway API's `pong` field for accurate server time display
+- Correctly extracts Controller API's `active_node` from top level
+- Displays Gateway database and proxy connection status
+- Only displays fields when data is available (conditional field display)
+- Added `--detail` flag to extend standard output with detailed Controller infrastructure info
+- Detail mode preserves dual API view and adds instances, instance groups, HA status, and capacity
+
+**Files Modified**: `aapclient/gateway/client.py`, `aapclient/common/ping.py`
+
 ## Command Patterns & Conventions
 
 ### Standard CRUD Operations
@@ -80,6 +98,15 @@ aap <resource> show <identifier> [--id <id>] [--name <name>]
 aap <resource> create <name> [--options...]
 aap <resource> set <identifier> [--id <id>] [--name <name>] [--updates...]
 aap <resource> delete <identifier> [--id <id>] [--name <name>]
+```
+
+### Special Commands
+
+```bash
+# Health monitoring
+aap ping                    # Check both Gateway and Controller APIs
+aap ping --detail           # Extended view with detailed Controller infrastructure
+aap ping --timeout <sec>    # Custom timeout for connectivity checks
 ```
 
 ### Mutually Exclusive Flag Pattern
@@ -192,6 +219,7 @@ aap resource show --id 123 "MyResource"  # Should validate they match
 ✅ Mutually exclusive flag patterns
 ✅ Comprehensive command coverage
 ✅ Modern Markdown documentation
+✅ Enhanced ping command with dual API support
 
 ### Architecture Strengths
 
