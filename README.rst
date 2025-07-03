@@ -1,14 +1,14 @@
+![AI Assisted Yes](https://img.shields.io/badge/AI%20Assisted-Yes-green?style=for-the-badge)
 ==================
 python-aapclient
 ==================
+⚠️  This tool is under active development, features may not work entirely or as expected.  Use at your own risk!! ⚠️
 
 Ansible Automation Platform Command-line Client
 
-python-aapclient is a command-line client for Ansible Automation Platform (AAP) that provides a unified interface for managing AAP resources such as projects, job templates, inventories, credentials, and more.
+python-aapclient is a command-line client for Ansible Automation Platform (AAP) that provides a unified interface for managing AAP resources such as organizations, users, projects, job templates, inventories, credentials, and more.
 
-This project is modeled after python-openstackclient and follows similar patterns for command structure and organization.
-
-⚠️  This tool is under active development, features may not work entirely or as expected.  Use at your own risk!! ⚠️
+This project is modeled after python-openstackclient and follows similar patterns for command structure, organization, and output formatting.
 
 Features
 ========
@@ -19,9 +19,15 @@ Features
 Installation
 ============
 
+While under development, this package can be installed from a local repository clone in a Python virtual environment.
+
 .. code-block:: bash
 
-    pip install python-aapclient
+    git clone https://github.com/jce-redhat/python-aapclient.git
+    cd python-aapclient
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -e .
 
 Configuration
 =============
@@ -59,13 +65,13 @@ Example ``.env`` file:
     AAP_TOKEN=your-api-token
 
     # OR use username/password
-    # AAP_USERNAME=your-username
-    # AAP_PASSWORD=your-password
+    #AAP_USERNAME=your-username
+    #AAP_PASSWORD=your-password
 
     # Optional
-    AAP_VERIFY_SSL=false  # For self-signed certificates
-    AAP_CA_BUNDLE=/path/to/ca-bundle.crt
-    AAP_TIMEOUT=60  # Request timeout in seconds
+    #AAP_VERIFY_SSL=false  # For self-signed certificates
+    #AAP_CA_BUNDLE=/path/to/ca-bundle.crt
+    #AAP_TIMEOUT=60  # Request timeout in seconds
 
 Usage
 =====
@@ -84,27 +90,18 @@ Basic commands:
     aap project create myproject --scm-type git --scm-url https://github.com/user/repo.git
 
     # Launch a job template
-    aap template launch "My Job Template" --extra-vars key=value
+    aap template launch "My Job Template"
 
     # List jobs
     aap job list
 
     # Show job output
-    aap job output 123
+    aap job output --id 123
 
 Commands
 ========
 
-The client organizes commands by AAP component and resource type:
-
-Controller Commands
--------------------
-
-* ``aap project`` - Manage projects
-* ``aap inventory`` - Manage inventories
-* ``aap credential`` - Manage credentials
-* ``aap template`` - Manage job templates
-* ``aap job`` - Manage and monitor jobs
+The client organizes commands by AAP component and resource type.  See the output of `aap --help` for the current list of commands available.
 
 Each resource supports standard CRUD operations where applicable:
 
