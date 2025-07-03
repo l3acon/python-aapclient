@@ -25,8 +25,15 @@ class CommandError(Exception):
 
 
 def get_dict_properties(data: Dict[str, Any], columns: Sequence[str]) -> List[Any]:
-    """Extract values from dictionary based on column list"""
-    return [data.get(col, '') for col in columns]
+    """Extract values from dictionary based on column list, formatting name fields"""
+    result = []
+    for col in columns:
+        value = data.get(col, '')
+        # Format any field containing 'name' in its key (name, project_name, etc.)
+        if 'name' in col and col != 'username':  # Don't format username fields
+            value = format_name(value)
+        result.append(value)
+    return result
 
 
 def find_resource(resources: Dict[str, Any], name_or_id: str) -> Dict[str, Any]:
@@ -99,3 +106,23 @@ def format_duration(start_time: Optional[str], end_time: Optional[str]) -> str:
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
     except (ValueError, TypeError):
         return ''
+
+
+def format_name(name: Any) -> str:
+    """Format a resource name, wrapping numeric names in double quotes"""
+    if name is None:
+        return ''
+
+    name_str = str(name)
+
+    # Check if the name is numeric (integer or float)
+    try:
+        # Try parsing as int first, then float
+        int(name_str)
+        return f'"{name_str}"'  # Wrap numeric names in quotes
+    except ValueError:
+        try:
+            float(name_str)
+            return f'"{name_str}"'  # Wrap numeric names in quotes
+        except ValueError:
+            return name_str  # Return as-is for non-numeric names

@@ -21,7 +21,7 @@ from cliff.command import Command
 from cliff.lister import Lister
 from cliff.show import ShowOne
 
-from aapclient.common.utils import get_dict_properties, CommandError
+from aapclient.common.utils import get_dict_properties, CommandError, format_name
 
 
 LOG = logging.getLogger(__name__)
@@ -64,7 +64,22 @@ class ShowOrganization(ShowOne):
         parser.add_argument(
             'organization',
             metavar='<organization>',
+            nargs='?',
             help='Organization to display (name or ID)',
+        )
+
+        # Create mutually exclusive group for --id and --name
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            '--id',
+            metavar='<id>',
+            type=int,
+            help='Organization ID to display',
+        )
+        group.add_argument(
+            '--name',
+            metavar='<name>',
+            help='Organization name to display',
         )
         return parser
 
@@ -72,17 +87,49 @@ class ShowOrganization(ShowOne):
         gateway_client = self.app.client_manager.gateway
         controller_client = self.app.client_manager.controller
 
-        # Get organization from Gateway API (identity info)
-        try:
-            org_id = int(parsed_args.organization)
-            gateway_org = gateway_client.get_organization(org_id)
-        except ValueError:
-            # Not an integer, search by name
-            orgs = gateway_client.list_organizations(name=parsed_args.organization)
+        # Validate arguments
+        if not any([parsed_args.organization, parsed_args.id, parsed_args.name]):
+            raise CommandError("Must specify an organization (by positional argument, --id, or --name)")
+
+        # Check for redundant --name with positional argument
+        if parsed_args.name and parsed_args.organization:
+            raise CommandError("Cannot use positional argument with --name (redundant)")
+
+        # Determine lookup method
+        gateway_org = None
+        org_id = None
+
+        if parsed_args.id and parsed_args.organization:
+            # ID flag with positional argument - search by ID and validate name matches
+            try:
+                gateway_org = gateway_client.get_organization(parsed_args.id)
+                org_id = parsed_args.id
+            except Exception as e:
+                raise CommandError(f"Organization with ID {parsed_args.id} not found")
+
+            # Validate that the organization found has the expected name
+            if gateway_org['name'] != parsed_args.organization:
+                raise CommandError(
+                    f"ID {parsed_args.id} and name '{parsed_args.organization}' refer to different organizations: "
+                    f"ID {parsed_args.id} is '{gateway_org['name']}', not '{parsed_args.organization}'"
+                )
+
+        elif parsed_args.id:
+            # Explicit ID lookup only
+            try:
+                gateway_org = gateway_client.get_organization(parsed_args.id)
+                org_id = parsed_args.id
+            except Exception as e:
+                raise CommandError(f"Organization with ID {parsed_args.id} not found")
+
+        else:
+            # Name lookup (either explicit --name or positional argument)
+            search_name = parsed_args.name or parsed_args.organization
+            orgs = gateway_client.list_organizations(name=search_name)
             if orgs['count'] == 0:
-                raise CommandError(f"Organization '{parsed_args.organization}' not found")
+                raise CommandError(f"Organization with name '{search_name}' not found")
             elif orgs['count'] > 1:
-                raise CommandError(f"Multiple organizations found with name '{parsed_args.organization}'")
+                raise CommandError(f"Multiple organizations found with name '{search_name}'")
             gateway_org = orgs['results'][0]
             org_id = gateway_org['id']
 
@@ -195,38 +242,110 @@ class DeleteOrganization(Command):
         parser.add_argument(
             'organizations',
             metavar='<organization>',
-            nargs='+',
+            nargs='*',
             help='Organization(s) to delete (name or ID)',
+        )
+
+        # Create mutually exclusive group for --id and --name
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            '--id',
+            metavar='<id>',
+            type=int,
+            help='Organization ID to delete',
+        )
+        group.add_argument(
+            '--name',
+            metavar='<name>',
+            help='Organization name to delete',
         )
         return parser
 
     def take_action(self, parsed_args):
         gateway_client = self.app.client_manager.gateway
 
+        # Validate arguments
+        if not any([parsed_args.organizations, parsed_args.id, parsed_args.name]):
+            raise CommandError("Must specify organization(s) to delete")
+
+        # Check for redundant --name with positional argument
+        if parsed_args.name and parsed_args.organizations:
+            raise CommandError("Cannot use positional arguments with --name (redundant)")
+
+        # Check for --id with multiple positional arguments
+        if parsed_args.id and len(parsed_args.organizations) > 1:
+            raise CommandError("Cannot use --id with multiple positional arguments")
+
+        # Handle single organization deletion via flags
+        if parsed_args.id or parsed_args.name:
+            if parsed_args.id and parsed_args.organizations:
+                # ID flag with one positional argument - search by ID and validate name matches
+                org_name = parsed_args.organizations[0]
+                try:
+                    org = gateway_client.get_organization(parsed_args.id)
+                except Exception as e:
+                    raise CommandError(f"Organization with ID {parsed_args.id} not found")
+
+                # Validate that the organization found has the expected name
+                if org['name'] != org_name:
+                    raise CommandError(
+                        f"ID {parsed_args.id} and name '{org_name}' refer to different organizations: "
+                        f"ID {parsed_args.id} is '{org['name']}', not '{org_name}'"
+                    )
+
+            elif parsed_args.id:
+                # Explicit ID lookup only
+                try:
+                    org = gateway_client.get_organization(parsed_args.id)
+                except Exception as e:
+                    raise CommandError(f"Organization with ID {parsed_args.id} not found")
+
+            else:
+                # --name flag only
+                orgs = gateway_client.list_organizations(name=parsed_args.name)
+                if orgs['count'] == 0:
+                    raise CommandError(f"Organization with name '{parsed_args.name}' not found")
+                elif orgs['count'] > 1:
+                    raise CommandError(f"Multiple organizations found with name '{parsed_args.name}'")
+                org = orgs['results'][0]
+
+            # Delete the single organization
+            org_id = org['id']
+            org_name = org['name']
+
+            try:
+                gateway_client.delete_organization(org_id)
+                self.app.stdout.write(f"Organization {format_name(org_name)} (ID: {org_id}) deleted\n")
+            except Exception as e:
+                raise CommandError(f"Failed to delete organization {format_name(org_name)}: {e}")
+            return
+
+        # Handle multiple organizations via positional arguments (default to name lookup)
         for org_identifier in parsed_args.organizations:
             try:
-                # Try to get by ID first, then by name
-                try:
-                    org_id = int(org_identifier)
-                    org = gateway_client.get_organization(org_id)
-                except ValueError:
-                    # Not an integer, search by name
-                    orgs = gateway_client.list_organizations(name=org_identifier)
-                    if orgs['count'] == 0:
+                # Default to name lookup for positional arguments
+                orgs = gateway_client.list_organizations(name=org_identifier)
+                if orgs['count'] == 0:
+                    # If name lookup fails, it might be an ID
+                    try:
+                        org_id = int(org_identifier)
+                        org = gateway_client.get_organization(org_id)
+                    except (ValueError, Exception):
                         self.app.stdout.write(f"Organization '{org_identifier}' not found\n")
                         continue
-                    elif orgs['count'] > 1:
-                        self.app.stdout.write(f"Multiple organizations found with name '{org_identifier}'\n")
-                        continue
+                elif orgs['count'] > 1:
+                    self.app.stdout.write(f"Multiple organizations found with name '{org_identifier}'\n")
+                    continue
+                else:
                     org = orgs['results'][0]
                     org_id = org['id']
 
                 # Delete from Gateway API (this should cascade to Controller)
                 gateway_client.delete_organization(org_id)
-                self.app.stdout.write(f"Organization '{org['name']}' (ID: {org_id}) deleted\n")
+                self.app.stdout.write(f"Organization {format_name(org['name'])} (ID: {org_id}) deleted\n")
 
             except Exception as e:
-                self.app.stdout.write(f"Failed to delete organization '{org_identifier}': {e}\n")
+                self.app.stdout.write(f"Failed to delete organization {format_name(org_identifier)}: {e}\n")
 
 
 class SetOrganization(ShowOne):
@@ -237,8 +356,24 @@ class SetOrganization(ShowOne):
         parser.add_argument(
             'organization',
             metavar='<organization>',
+            nargs='?',
             help='Organization to modify (name or ID)',
         )
+
+        # Create mutually exclusive group for --id and --org-name
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            '--id',
+            metavar='<id>',
+            type=int,
+            help='Organization ID to modify',
+        )
+        group.add_argument(
+            '--org-name',
+            metavar='<name>',
+            help='Organization name to modify',
+        )
+
         parser.add_argument(
             '--name',
             metavar='<name>',
@@ -261,16 +396,44 @@ class SetOrganization(ShowOne):
         gateway_client = self.app.client_manager.gateway
         controller_client = self.app.client_manager.controller
 
-        # Find the organization
-        try:
-            org_id = int(parsed_args.organization)
-        except ValueError:
-            # Not an integer, search by name
-            orgs = gateway_client.list_organizations(name=parsed_args.organization)
+        # Validate arguments
+        if not any([parsed_args.organization, parsed_args.id, parsed_args.org_name]):
+            raise CommandError("Must specify an organization (by positional argument, --id, or --org-name)")
+
+        # Check for redundant --org-name with positional argument
+        if parsed_args.org_name and parsed_args.organization:
+            raise CommandError("Cannot use positional argument with --org-name (redundant)")
+
+        # Determine lookup method
+        org_id = None
+
+        if parsed_args.id and parsed_args.organization:
+            # ID flag with positional argument - search by ID and validate name matches
+            try:
+                org = gateway_client.get_organization(parsed_args.id)
+                org_id = parsed_args.id
+            except Exception as e:
+                raise CommandError(f"Organization with ID {parsed_args.id} not found")
+
+            # Validate that the organization found has the expected name
+            if org['name'] != parsed_args.organization:
+                raise CommandError(
+                    f"ID {parsed_args.id} and name '{parsed_args.organization}' refer to different organizations: "
+                    f"ID {parsed_args.id} is '{org['name']}', not '{parsed_args.organization}'"
+                )
+
+        elif parsed_args.id:
+            # Explicit ID lookup only
+            org_id = parsed_args.id
+
+        else:
+            # Name lookup (either explicit --org-name or positional argument)
+            search_name = parsed_args.org_name or parsed_args.organization
+            orgs = gateway_client.list_organizations(name=search_name)
             if orgs['count'] == 0:
-                raise CommandError(f"Organization '{parsed_args.organization}' not found")
+                raise CommandError(f"Organization with name '{search_name}' not found")
             elif orgs['count'] > 1:
-                raise CommandError(f"Multiple organizations found with name '{parsed_args.organization}'")
+                raise CommandError(f"Multiple organizations found with name '{search_name}'")
             org_id = orgs['results'][0]['id']
 
         updated_org = None

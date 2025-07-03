@@ -21,7 +21,7 @@ import json
 from cliff.lister import Lister
 from cliff.show import ShowOne
 
-from aapclient.common.utils import CommandError, get_dict_properties
+from aapclient.common.utils import CommandError, get_dict_properties, format_name
 
 
 LOG = logging.getLogger(__name__)
@@ -99,24 +99,68 @@ class ShowJobTemplate(ShowOne):
         parser.add_argument(
             'job_template',
             metavar='<job-template>',
+            nargs='?',
             help='Job template to display (name or ID)',
+        )
+
+        # Create mutually exclusive group for --id and --name
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            '--id',
+            metavar='<id>',
+            type=int,
+            help='Job template ID to display',
+        )
+        group.add_argument(
+            '--name',
+            metavar='<name>',
+            help='Job template name to display',
         )
         return parser
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
 
-        # Try to get by ID first, then by name
-        try:
-            template_id = int(parsed_args.job_template)
-            template = client.get_job_template(template_id)
-        except ValueError:
-            # Not an integer, search by name
-            templates = client.list_job_templates(name=parsed_args.job_template)
+        # Validate arguments
+        if not any([parsed_args.job_template, parsed_args.id, parsed_args.name]):
+            raise CommandError("Must specify a job template (by positional argument, --id, or --name)")
+
+        # Check for redundant --name with positional argument
+        if parsed_args.name and parsed_args.job_template:
+            raise CommandError("Cannot use positional argument with --name (redundant)")
+
+        # Determine lookup method
+        template = None
+
+        if parsed_args.id and parsed_args.job_template:
+            # ID flag with positional argument - search by ID and validate name matches
+            try:
+                template = client.get_job_template(parsed_args.id)
+            except Exception as e:
+                raise CommandError(f"Job template with ID {parsed_args.id} not found")
+
+            # Validate that the template found has the expected name
+            if template['name'] != parsed_args.job_template:
+                raise CommandError(
+                    f"ID {parsed_args.id} and name '{parsed_args.job_template}' refer to different job templates: "
+                    f"ID {parsed_args.id} is '{template['name']}', not '{parsed_args.job_template}'"
+                )
+
+        elif parsed_args.id:
+            # Explicit ID lookup only
+            try:
+                template = client.get_job_template(parsed_args.id)
+            except Exception as e:
+                raise CommandError(f"Job template with ID {parsed_args.id} not found")
+
+        else:
+            # Name lookup (either explicit --name or positional argument)
+            search_name = parsed_args.name or parsed_args.job_template
+            templates = client.list_job_templates(name=search_name)
             if templates['count'] == 0:
-                raise CommandError(f"Job template '{parsed_args.job_template}' not found")
+                raise CommandError(f"Job template with name '{search_name}' not found")
             elif templates['count'] > 1:
-                raise CommandError(f"Multiple job templates found with name '{parsed_args.job_template}'")
+                raise CommandError(f"Multiple job templates found with name '{search_name}'")
             template = templates['results'][0]
 
         # Add project and inventory names from summary_fields

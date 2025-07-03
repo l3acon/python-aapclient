@@ -24,6 +24,7 @@ from cliff.lister import Lister
 from cliff.show import ShowOne
 
 from aapclient.common import utils
+from aapclient.common.utils import format_name
 
 
 LOG = logging.getLogger(__name__)
@@ -110,21 +111,65 @@ class ShowCredential(ShowOne):
         parser = super().get_parser(prog_name)
         parser.add_argument(
             'credential',
+            nargs='?',
             help='Credential name or ID to display'
+        )
+
+        # Create mutually exclusive group for --id and --name
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            '--id',
+            metavar='<id>',
+            type=int,
+            help='Credential ID to display',
+        )
+        group.add_argument(
+            '--name',
+            metavar='<name>',
+            help='Credential name to display',
         )
         return parser
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
 
-        # Find credential by name or ID
-        if parsed_args.credential.isdigit():
-            credential_id = int(parsed_args.credential)
-            data = client.get_credential(credential_id)
+        # Validate arguments
+        if not any([parsed_args.credential, parsed_args.id, parsed_args.name]):
+            raise utils.CommandError("Must specify a credential (by positional argument, --id, or --name)")
+
+        # Check for redundant --name with positional argument
+        if parsed_args.name and parsed_args.credential:
+            raise utils.CommandError("Cannot use positional argument with --name (redundant)")
+
+        # Determine lookup method
+        data = None
+
+        if parsed_args.id and parsed_args.credential:
+            # ID flag with positional argument - search by ID and validate name matches
+            try:
+                data = client.get_credential(parsed_args.id)
+            except Exception as e:
+                raise utils.CommandError(f"Credential with ID {parsed_args.id} not found")
+
+            # Validate that the credential found has the expected name
+            if data['name'] != parsed_args.credential:
+                raise utils.CommandError(
+                    f"ID {parsed_args.id} and name '{parsed_args.credential}' refer to different credentials: "
+                    f"ID {parsed_args.id} is '{data['name']}', not '{parsed_args.credential}'"
+                )
+
+        elif parsed_args.id:
+            # Explicit ID lookup only
+            try:
+                data = client.get_credential(parsed_args.id)
+            except Exception as e:
+                raise utils.CommandError(f"Credential with ID {parsed_args.id} not found")
+
         else:
-            # Search by name
-            credentials = client.list_credentials(name=parsed_args.credential)
-            credential = utils.find_resource(credentials, parsed_args.credential)
+            # Name lookup (either explicit --name or positional argument)
+            search_name = parsed_args.name or parsed_args.credential
+            credentials = client.list_credentials(name=search_name)
+            credential = utils.find_resource(credentials, search_name)
             data = client.get_credential(credential['id'])
 
         # Add names from summary_fields
@@ -371,25 +416,103 @@ class DeleteCredential(Command):
         parser = super().get_parser(prog_name)
         parser.add_argument(
             'credential',
-            nargs='+',
+            nargs='*',
             help='Credential name or ID to delete'
+        )
+
+        # Create mutually exclusive group for --id and --name
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            '--id',
+            metavar='<id>',
+            type=int,
+            help='Credential ID to delete',
+        )
+        group.add_argument(
+            '--name',
+            metavar='<name>',
+            help='Credential name to delete',
         )
         return parser
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
 
-        for credential_name_or_id in parsed_args.credential:
-            # Find credential by name or ID
-            if credential_name_or_id.isdigit():
-                credential_id = int(credential_name_or_id)
-                credential_name = credential_name_or_id
-            else:
-                credentials = client.list_credentials(name=credential_name_or_id)
-                credential = utils.find_resource(credentials, credential_name_or_id)
-                credential_id = credential['id']
-                credential_name = credential['name']
+        # Validate arguments
+        if not any([parsed_args.credential, parsed_args.id, parsed_args.name]):
+            raise utils.CommandError("Must specify credential(s) to delete")
 
-            # Delete the credential
-            client.delete_credential(credential_id)
-            self.app.stdout.write(f"Credential '{credential_name}' deleted\n")
+        # Check for redundant --name with positional argument
+        if parsed_args.name and parsed_args.credential:
+            raise utils.CommandError("Cannot use positional arguments with --name (redundant)")
+
+        # Check for --id with multiple positional arguments
+        if parsed_args.id and len(parsed_args.credential) > 1:
+            raise utils.CommandError("Cannot use --id with multiple positional arguments")
+
+        # Handle single credential deletion via flags
+        if parsed_args.id or parsed_args.name:
+            if parsed_args.id and parsed_args.credential:
+                # ID flag with one positional argument - search by ID and validate name matches
+                credential_name = parsed_args.credential[0]
+                try:
+                    credential_obj = client.get_credential(parsed_args.id)
+                except Exception as e:
+                    raise utils.CommandError(f"Credential with ID {parsed_args.id} not found")
+
+                # Validate that the credential found has the expected name
+                if credential_obj['name'] != credential_name:
+                    raise utils.CommandError(
+                        f"ID {parsed_args.id} and name '{credential_name}' refer to different credentials: "
+                        f"ID {parsed_args.id} is '{credential_obj['name']}', not '{credential_name}'"
+                    )
+
+            elif parsed_args.id:
+                # Explicit ID lookup only
+                try:
+                    credential_obj = client.get_credential(parsed_args.id)
+                except Exception as e:
+                    raise utils.CommandError(f"Credential with ID {parsed_args.id} not found")
+
+            else:
+                # --name flag only
+                credentials = client.list_credentials(name=parsed_args.name)
+                try:
+                    credential_obj = utils.find_resource(credentials, parsed_args.name)
+                except Exception as e:
+                    raise utils.CommandError(f"Credential with name '{parsed_args.name}' not found")
+
+            # Delete the single credential
+            credential_id = credential_obj['id']
+            credential_name = credential_obj['name']
+
+            try:
+                client.delete_credential(credential_id)
+                self.app.stdout.write(f"Credential {format_name(credential_name)} (ID: {credential_id}) deleted\n")
+            except Exception as e:
+                raise utils.CommandError(f"Failed to delete credential {format_name(credential_name)}: {e}")
+            return
+
+        # Handle multiple credentials via positional arguments (default to name lookup)
+        for credential_name_or_id in parsed_args.credential:
+            try:
+                # Default to name lookup for positional arguments
+                credentials = client.list_credentials(name=credential_name_or_id)
+                try:
+                    credential = utils.find_resource(credentials, credential_name_or_id)
+                    credential_id = credential['id']
+                    credential_name = credential['name']
+                except Exception:
+                    # If name lookup fails, it might be an ID
+                    if credential_name_or_id.isdigit():
+                        credential_id = int(credential_name_or_id)
+                        credential_obj = client.get_credential(credential_id)
+                        credential_name = credential_obj['name']
+                    else:
+                        raise utils.CommandError(f"Credential '{credential_name_or_id}' not found")
+
+                # Delete the credential
+                client.delete_credential(credential_id)
+                self.app.stdout.write(f"Credential {format_name(credential_name)} (ID: {credential_id}) deleted\n")
+            except Exception as e:
+                self.app.stdout.write(f"Failed to delete credential {format_name(credential_name_or_id)}: {e}\n")

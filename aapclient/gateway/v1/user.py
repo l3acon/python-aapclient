@@ -21,7 +21,7 @@ from cliff.command import Command
 from cliff.lister import Lister
 from cliff.show import ShowOne
 
-from aapclient.common.utils import get_dict_properties, CommandError
+from aapclient.common.utils import get_dict_properties, CommandError, format_name
 
 
 LOG = logging.getLogger(__name__)
@@ -93,24 +93,68 @@ class ShowUser(ShowOne):
         parser.add_argument(
             'user',
             metavar='<user>',
+            nargs='?',
             help='User to display (username or ID)',
+        )
+
+        # Create mutually exclusive group for --id and --username
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            '--id',
+            metavar='<id>',
+            type=int,
+            help='User ID to display',
+        )
+        group.add_argument(
+            '--username',
+            metavar='<username>',
+            help='Username to display',
         )
         return parser
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.gateway
 
-        # Try to get by ID first, then by username
-        try:
-            user_id = int(parsed_args.user)
-            user = client.get_user(user_id)
-        except ValueError:
-            # Not an integer, search by username
-            users = client.list_users(username=parsed_args.user)
+        # Validate arguments
+        if not any([parsed_args.user, parsed_args.id, parsed_args.username]):
+            raise CommandError("Must specify a user (by positional argument, --id, or --username)")
+
+        # Check for redundant --username with positional argument
+        if parsed_args.username and parsed_args.user:
+            raise CommandError("Cannot use positional argument with --username (redundant)")
+
+        # Determine lookup method
+        user = None
+
+        if parsed_args.id and parsed_args.user:
+            # ID flag with positional argument - search by ID and validate username matches
+            try:
+                user = client.get_user(parsed_args.id)
+            except Exception as e:
+                raise CommandError(f"User with ID {parsed_args.id} not found")
+
+            # Validate that the user found has the expected username
+            if user['username'] != parsed_args.user:
+                raise CommandError(
+                    f"ID {parsed_args.id} and username '{parsed_args.user}' refer to different users: "
+                    f"ID {parsed_args.id} is '{user['username']}', not '{parsed_args.user}'"
+                )
+
+        elif parsed_args.id:
+            # Explicit ID lookup only
+            try:
+                user = client.get_user(parsed_args.id)
+            except Exception as e:
+                raise CommandError(f"User with ID {parsed_args.id} not found")
+
+        else:
+            # Username lookup (either explicit --username or positional argument)
+            search_username = parsed_args.username or parsed_args.user
+            users = client.list_users(username=search_username)
             if users['count'] == 0:
-                raise CommandError(f"User '{parsed_args.user}' not found")
+                raise CommandError(f"User with username '{search_username}' not found")
             elif users['count'] > 1:
-                raise CommandError(f"Multiple users found with username '{parsed_args.user}'")
+                raise CommandError(f"Multiple users found with username '{search_username}'")
             user = users['results'][0]
 
         # Common user attributes to display (using Gateway API field names)
@@ -215,38 +259,110 @@ class DeleteUser(Command):
         parser.add_argument(
             'users',
             metavar='<user>',
-            nargs='+',
+            nargs='*',
             help='User(s) to delete (username or ID)',
+        )
+
+        # Create mutually exclusive group for --id and --username
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            '--id',
+            metavar='<id>',
+            type=int,
+            help='User ID to delete',
+        )
+        group.add_argument(
+            '--username',
+            metavar='<username>',
+            help='Username to delete',
         )
         return parser
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.gateway
 
+        # Validate arguments
+        if not any([parsed_args.users, parsed_args.id, parsed_args.username]):
+            raise CommandError("Must specify user(s) to delete")
+
+        # Check for redundant --username with positional argument
+        if parsed_args.username and parsed_args.users:
+            raise CommandError("Cannot use positional arguments with --username (redundant)")
+
+        # Check for --id with multiple positional arguments
+        if parsed_args.id and len(parsed_args.users) > 1:
+            raise CommandError("Cannot use --id with multiple positional arguments")
+
+        # Handle single user deletion via flags
+        if parsed_args.id or parsed_args.username:
+            if parsed_args.id and parsed_args.users:
+                # ID flag with one positional argument - search by ID and validate username matches
+                username = parsed_args.users[0]
+                try:
+                    user = client.get_user(parsed_args.id)
+                except Exception as e:
+                    raise CommandError(f"User with ID {parsed_args.id} not found")
+
+                # Validate that the user found has the expected username
+                if user['username'] != username:
+                    raise CommandError(
+                        f"ID {parsed_args.id} and username '{username}' refer to different users: "
+                        f"ID {parsed_args.id} is '{user['username']}', not '{username}'"
+                    )
+
+            elif parsed_args.id:
+                # Explicit ID lookup only
+                try:
+                    user = client.get_user(parsed_args.id)
+                except Exception as e:
+                    raise CommandError(f"User with ID {parsed_args.id} not found")
+
+            else:
+                # --username flag only
+                users = client.list_users(username=parsed_args.username)
+                if users['count'] == 0:
+                    raise CommandError(f"User with username '{parsed_args.username}' not found")
+                elif users['count'] > 1:
+                    raise CommandError(f"Multiple users found with username '{parsed_args.username}'")
+                user = users['results'][0]
+
+            # Delete the single user
+            user_id = user['id']
+            username = user['username']
+
+            try:
+                client.delete_user(user_id)
+                self.app.stdout.write(f"User {format_name(username)} (ID: {user_id}) deleted\n")
+            except Exception as e:
+                raise CommandError(f"Failed to delete user {format_name(username)}: {e}")
+            return
+
+        # Handle multiple users via positional arguments (default to username lookup)
         for user_identifier in parsed_args.users:
             try:
-                # Try to get by ID first, then by username
-                try:
-                    user_id = int(user_identifier)
-                    user = client.get_user(user_id)
-                except ValueError:
-                    # Not an integer, search by username
-                    users = client.list_users(username=user_identifier)
-                    if users['count'] == 0:
+                # Default to username lookup for positional arguments
+                users = client.list_users(username=user_identifier)
+                if users['count'] == 0:
+                    # If username lookup fails, it might be an ID
+                    try:
+                        user_id = int(user_identifier)
+                        user = client.get_user(user_id)
+                    except (ValueError, Exception):
                         self.app.stdout.write(f"User '{user_identifier}' not found\n")
                         continue
-                    elif users['count'] > 1:
-                        self.app.stdout.write(f"Multiple users found with username '{user_identifier}'\n")
-                        continue
+                elif users['count'] > 1:
+                    self.app.stdout.write(f"Multiple users found with username '{user_identifier}'\n")
+                    continue
+                else:
                     user = users['results'][0]
                     user_id = user['id']
 
                 # Delete the user
                 client.delete_user(user_id)
-                self.app.stdout.write(f"User '{user['username']}' (ID: {user_id}) deleted\n")
+                self.app.stdout.write(f"User {format_name(user['username'])} (ID: {user_id}) deleted\n")
 
             except Exception as e:
-                self.app.stdout.write(f"Failed to delete user '{user_identifier}': {e}\n")
+                self.app.stdout.write(f"Failed to delete user {format_name(user_identifier)}: {e}\n")
 
 
 class SetUser(ShowOne):

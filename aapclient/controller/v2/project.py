@@ -21,7 +21,8 @@ from cliff.command import Command
 from cliff.lister import Lister
 from cliff.show import ShowOne
 
-from aapclient.common.utils import CommandError, get_dict_properties
+from aapclient.common.utils import CommandError, get_dict_properties, format_name
+from aapclient.controller.client import ControllerClientError
 
 
 LOG = logging.getLogger(__name__)
@@ -121,36 +122,103 @@ class DeleteProject(Command):
         parser.add_argument(
             'projects',
             metavar='<project>',
-            nargs="+",
+            nargs='*',
             help='Project(s) to delete (name or ID)',
+        )
+
+        # Create mutually exclusive group for --id and --name
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            '--id',
+            metavar='<id>',
+            type=int,
+            help='Project ID to delete',
+        )
+        group.add_argument(
+            '--name',
+            metavar='<name>',
+            help='Project name to delete',
         )
         return parser
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
 
+        # Validate arguments
+        if not any([parsed_args.projects, parsed_args.id, parsed_args.name]):
+            raise CommandError("Must specify project(s) to delete")
+
+        # Check for redundant --name with positional argument
+        if parsed_args.name and parsed_args.projects:
+            raise CommandError("Cannot use positional arguments with --name (redundant)")
+
+        # Check for --id with multiple positional arguments
+        if parsed_args.id and len(parsed_args.projects) > 1:
+            raise CommandError("Cannot use --id with multiple positional arguments")
+
+        # Handle single project deletion via flags
+        if parsed_args.id or parsed_args.name:
+            if parsed_args.id and parsed_args.projects:
+                # ID flag with one positional argument - search by ID and validate name matches
+                project_name = parsed_args.projects[0]
+                try:
+                    project_obj = client.get_project(parsed_args.id)
+                except ControllerClientError:
+                    raise CommandError(f"Project with ID {parsed_args.id} not found")
+
+                # Validate that the project found has the expected name
+                if project_obj['name'] != project_name:
+                    raise CommandError(
+                        f"ID {parsed_args.id} and name '{project_name}' refer to different projects: "
+                        f"ID {parsed_args.id} is '{project_obj['name']}', not '{project_name}'"
+                    )
+
+            elif parsed_args.id:
+                # Explicit ID lookup only
+                try:
+                    project_obj = client.get_project(parsed_args.id)
+                except ControllerClientError:
+                    raise CommandError(f"Project with ID {parsed_args.id} not found")
+
+            else:
+                # --name flag only
+                projects = client.list_projects(name=parsed_args.name)
+                if projects['count'] == 0:
+                    raise CommandError(f"Project with name '{parsed_args.name}' not found")
+                elif projects['count'] > 1:
+                    raise CommandError(f"Multiple projects found with name '{parsed_args.name}'")
+                project_obj = projects['results'][0]
+
+            # Delete the single project
+            project_id = project_obj['id']
+            project_name = project_obj['name']
+
+            try:
+                client.delete_project(project_id)
+                print(f"Project {format_name(project_name)} (ID: {project_id}) deleted successfully")
+            except Exception as e:
+                raise CommandError(f"Failed to delete project {format_name(project_name)}: {e}")
+            return
+
+        # Handle multiple projects via positional arguments (default to name lookup)
         errors = 0
         for project in parsed_args.projects:
             try:
-                # Try to get by ID first, then by name
-                try:
-                    project_id = int(project)
-                    project_obj = client.get_project(project_id)
-                except ValueError:
-                    # Not an integer, search by name
-                    projects = client.list_projects(name=project)
-                    if projects['count'] == 0:
-                        raise CommandError(f"Project '{project}' not found")
-                    elif projects['count'] > 1:
-                        raise CommandError(f"Multiple projects found with name '{project}'")
-                    project_obj = projects['results'][0]
-                    project_id = project_obj['id']
+                # Default to name lookup for positional arguments
+                projects = client.list_projects(name=project)
+                if projects['count'] == 0:
+                    raise CommandError(f"Project with name '{project}' not found")
+                elif projects['count'] > 1:
+                    raise CommandError(f"Multiple projects found with name '{project}'")
+
+                project_obj = projects['results'][0]
+                project_id = project_obj['id']
 
                 client.delete_project(project_id)
-                print(f"Project '{project}' deleted successfully")
+                print(f"Project {format_name(project)} (ID: {project_id}) deleted successfully")
             except Exception as e:
                 errors += 1
-                LOG.error(f"Failed to delete project '{project}': {e}")
+                LOG.error(f"Failed to delete project {format_name(project)}: {e}")
 
         if errors > 0:
             total = len(parsed_args.projects)
@@ -225,24 +293,68 @@ class ShowProject(ShowOne):
         parser.add_argument(
             'project',
             metavar='<project>',
+            nargs='?',
             help='Project to display (name or ID)',
+        )
+
+        # Create mutually exclusive group for --id and --name
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            '--id',
+            metavar='<id>',
+            type=int,
+            help='Project ID to display',
+        )
+        group.add_argument(
+            '--name',
+            metavar='<name>',
+            help='Project name to display',
         )
         return parser
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
 
-        # Try to get by ID first, then by name
-        try:
-            project_id = int(parsed_args.project)
-            project = client.get_project(project_id)
-        except ValueError:
-            # Not an integer, search by name
-            projects = client.list_projects(name=parsed_args.project)
+        # Validate arguments
+        if not any([parsed_args.project, parsed_args.id, parsed_args.name]):
+            raise CommandError("Must specify a project (by positional argument, --id, or --name)")
+
+        # Check for redundant --name with positional argument
+        if parsed_args.name and parsed_args.project:
+            raise CommandError("Cannot use positional argument with --name (redundant)")
+
+        # Determine lookup method
+        project = None
+
+        if parsed_args.id and parsed_args.project:
+            # ID flag with positional argument - search by ID and validate name matches
+            try:
+                project = client.get_project(parsed_args.id)
+            except ControllerClientError:
+                raise CommandError(f"Project with ID {parsed_args.id} not found")
+
+            # Validate that the project found has the expected name
+            if project['name'] != parsed_args.project:
+                raise CommandError(
+                    f"ID {parsed_args.id} and name '{parsed_args.project}' refer to different projects: "
+                    f"ID {parsed_args.id} is '{project['name']}', not '{parsed_args.project}'"
+                )
+
+        elif parsed_args.id:
+            # Explicit ID lookup only
+            try:
+                project = client.get_project(parsed_args.id)
+            except ControllerClientError:
+                raise CommandError(f"Project with ID {parsed_args.id} not found")
+
+        else:
+            # Name lookup (either explicit --name or positional argument)
+            search_name = parsed_args.name or parsed_args.project
+            projects = client.list_projects(name=search_name)
             if projects['count'] == 0:
-                raise CommandError(f"Project '{parsed_args.project}' not found")
+                raise CommandError(f"Project with name '{search_name}' not found")
             elif projects['count'] > 1:
-                raise CommandError(f"Multiple projects found with name '{parsed_args.project}'")
+                raise CommandError(f"Multiple projects found with name '{search_name}'")
             project = projects['results'][0]
 
         # Add organization name from summary_fields
@@ -334,4 +446,4 @@ class SetProject(Command):
             raise CommandError("No changes specified")
 
         client.update_project(project_id, data)
-        print(f"Project '{parsed_args.project}' updated successfully")
+        print(f"Project {format_name(parsed_args.project)} updated successfully")

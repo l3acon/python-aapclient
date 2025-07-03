@@ -21,7 +21,7 @@ from cliff.command import Command
 from cliff.lister import Lister
 from cliff.show import ShowOne
 
-from aapclient.common.utils import get_dict_properties, CommandError
+from aapclient.common.utils import get_dict_properties, CommandError, format_name
 
 LOG = logging.getLogger(__name__)
 
@@ -90,24 +90,68 @@ class ShowTeam(ShowOne):
         parser.add_argument(
             'team',
             metavar='<team>',
+            nargs='?',
             help='Team to display (name or ID)',
+        )
+
+        # Create mutually exclusive group for --id and --name
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            '--id',
+            metavar='<id>',
+            type=int,
+            help='Team ID to display',
+        )
+        group.add_argument(
+            '--name',
+            metavar='<name>',
+            help='Team name to display',
         )
         return parser
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.gateway
 
-        # Try to get by ID first, then by name
-        try:
-            team_id = int(parsed_args.team)
-            team = client.get_team(team_id)
-        except ValueError:
-            # Not an integer, search by name
-            teams = client.list_teams(name=parsed_args.team)
+        # Validate arguments
+        if not any([parsed_args.team, parsed_args.id, parsed_args.name]):
+            raise CommandError("Must specify a team (by positional argument, --id, or --name)")
+
+        # Check for redundant --name with positional argument
+        if parsed_args.name and parsed_args.team:
+            raise CommandError("Cannot use positional argument with --name (redundant)")
+
+        # Determine lookup method
+        team = None
+
+        if parsed_args.id and parsed_args.team:
+            # ID flag with positional argument - search by ID and validate name matches
+            try:
+                team = client.get_team(parsed_args.id)
+            except Exception as e:
+                raise CommandError(f"Team with ID {parsed_args.id} not found")
+
+            # Validate that the team found has the expected name
+            if team['name'] != parsed_args.team:
+                raise CommandError(
+                    f"ID {parsed_args.id} and name '{parsed_args.team}' refer to different teams: "
+                    f"ID {parsed_args.id} is '{team['name']}', not '{parsed_args.team}'"
+                )
+
+        elif parsed_args.id:
+            # Explicit ID lookup only
+            try:
+                team = client.get_team(parsed_args.id)
+            except Exception as e:
+                raise CommandError(f"Team with ID {parsed_args.id} not found")
+
+        else:
+            # Name lookup (either explicit --name or positional argument)
+            search_name = parsed_args.name or parsed_args.team
+            teams = client.list_teams(name=search_name)
             if teams['count'] == 0:
-                raise CommandError(f"Team '{parsed_args.team}' not found")
+                raise CommandError(f"Team with name '{search_name}' not found")
             elif teams['count'] > 1:
-                raise CommandError(f"Multiple teams found with name '{parsed_args.team}'")
+                raise CommandError(f"Multiple teams found with name '{search_name}'")
             team = teams['results'][0]
 
         # Extract organization name from summary_fields
@@ -192,38 +236,110 @@ class DeleteTeam(Command):
         parser.add_argument(
             'teams',
             metavar='<team>',
-            nargs='+',
+            nargs='*',
             help='Team(s) to delete (name or ID)',
+        )
+
+        # Create mutually exclusive group for --id and --name
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            '--id',
+            metavar='<id>',
+            type=int,
+            help='Team ID to delete',
+        )
+        group.add_argument(
+            '--name',
+            metavar='<name>',
+            help='Team name to delete',
         )
         return parser
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.gateway
 
+        # Validate arguments
+        if not any([parsed_args.teams, parsed_args.id, parsed_args.name]):
+            raise CommandError("Must specify team(s) to delete")
+
+        # Check for redundant --name with positional argument
+        if parsed_args.name and parsed_args.teams:
+            raise CommandError("Cannot use positional arguments with --name (redundant)")
+
+        # Check for --id with multiple positional arguments
+        if parsed_args.id and len(parsed_args.teams) > 1:
+            raise CommandError("Cannot use --id with multiple positional arguments")
+
+        # Handle single team deletion via flags
+        if parsed_args.id or parsed_args.name:
+            if parsed_args.id and parsed_args.teams:
+                # ID flag with one positional argument - search by ID and validate name matches
+                team_name = parsed_args.teams[0]
+                try:
+                    team = client.get_team(parsed_args.id)
+                except Exception as e:
+                    raise CommandError(f"Team with ID {parsed_args.id} not found")
+
+                # Validate that the team found has the expected name
+                if team['name'] != team_name:
+                    raise CommandError(
+                        f"ID {parsed_args.id} and name '{team_name}' refer to different teams: "
+                        f"ID {parsed_args.id} is '{team['name']}', not '{team_name}'"
+                    )
+
+            elif parsed_args.id:
+                # Explicit ID lookup only
+                try:
+                    team = client.get_team(parsed_args.id)
+                except Exception as e:
+                    raise CommandError(f"Team with ID {parsed_args.id} not found")
+
+            else:
+                # --name flag only
+                teams = client.list_teams(name=parsed_args.name)
+                if teams['count'] == 0:
+                    raise CommandError(f"Team with name '{parsed_args.name}' not found")
+                elif teams['count'] > 1:
+                    raise CommandError(f"Multiple teams found with name '{parsed_args.name}'")
+                team = teams['results'][0]
+
+            # Delete the single team
+            team_id = team['id']
+            team_name = team['name']
+
+            try:
+                client.delete_team(team_id)
+                self.app.stdout.write(f"Team {format_name(team_name)} (ID: {team_id}) deleted\n")
+            except Exception as e:
+                raise CommandError(f"Failed to delete team {format_name(team_name)}: {e}")
+            return
+
+        # Handle multiple teams via positional arguments (default to name lookup)
         for team_identifier in parsed_args.teams:
             try:
-                # Try to get by ID first, then by name
-                try:
-                    team_id = int(team_identifier)
-                    team = client.get_team(team_id)
-                except ValueError:
-                    # Not an integer, search by name
-                    teams = client.list_teams(name=team_identifier)
-                    if teams['count'] == 0:
+                # Default to name lookup for positional arguments
+                teams = client.list_teams(name=team_identifier)
+                if teams['count'] == 0:
+                    # If name lookup fails, it might be an ID
+                    try:
+                        team_id = int(team_identifier)
+                        team = client.get_team(team_id)
+                    except (ValueError, Exception):
                         self.app.stdout.write(f"Team '{team_identifier}' not found\n")
                         continue
-                    elif teams['count'] > 1:
-                        self.app.stdout.write(f"Multiple teams found with name '{team_identifier}'\n")
-                        continue
+                elif teams['count'] > 1:
+                    self.app.stdout.write(f"Multiple teams found with name '{team_identifier}'\n")
+                    continue
+                else:
                     team = teams['results'][0]
                     team_id = team['id']
 
                 # Delete the team
                 client.delete_team(team_id)
-                self.app.stdout.write(f"Team '{team['name']}' (ID: {team_id}) deleted\n")
+                self.app.stdout.write(f"Team {format_name(team['name'])} (ID: {team_id}) deleted\n")
 
             except Exception as e:
-                self.app.stdout.write(f"Failed to delete team '{team_identifier}': {e}\n")
+                self.app.stdout.write(f"Failed to delete team {format_name(team_identifier)}: {e}\n")
 
 
 class SetTeam(ShowOne):
@@ -234,8 +350,24 @@ class SetTeam(ShowOne):
         parser.add_argument(
             'team',
             metavar='<team>',
+            nargs='?',
             help='Team to modify (name or ID)',
         )
+
+        # Create mutually exclusive group for --id and --team-name
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            '--id',
+            metavar='<id>',
+            type=int,
+            help='Team ID to modify',
+        )
+        group.add_argument(
+            '--team-name',
+            metavar='<name>',
+            help='Team name to modify',
+        )
+
         parser.add_argument(
             '--name',
             metavar='<name>',
@@ -256,16 +388,44 @@ class SetTeam(ShowOne):
     def take_action(self, parsed_args):
         client = self.app.client_manager.gateway
 
-        # Find the team
-        try:
-            team_id = int(parsed_args.team)
-        except ValueError:
-            # Not an integer, search by name
-            teams = client.list_teams(name=parsed_args.team)
+        # Validate arguments
+        if not any([parsed_args.team, parsed_args.id, parsed_args.team_name]):
+            raise CommandError("Must specify a team (by positional argument, --id, or --team-name)")
+
+        # Check for redundant --team-name with positional argument
+        if parsed_args.team_name and parsed_args.team:
+            raise CommandError("Cannot use positional argument with --team-name (redundant)")
+
+        # Determine lookup method
+        team_id = None
+
+        if parsed_args.id and parsed_args.team:
+            # ID flag with positional argument - search by ID and validate name matches
+            try:
+                team = client.get_team(parsed_args.id)
+                team_id = parsed_args.id
+            except Exception as e:
+                raise CommandError(f"Team with ID {parsed_args.id} not found")
+
+            # Validate that the team found has the expected name
+            if team['name'] != parsed_args.team:
+                raise CommandError(
+                    f"ID {parsed_args.id} and name '{parsed_args.team}' refer to different teams: "
+                    f"ID {parsed_args.id} is '{team['name']}', not '{parsed_args.team}'"
+                )
+
+        elif parsed_args.id:
+            # Explicit ID lookup only
+            team_id = parsed_args.id
+
+        else:
+            # Name lookup (either explicit --team-name or positional argument)
+            search_name = parsed_args.team_name or parsed_args.team
+            teams = client.list_teams(name=search_name)
             if teams['count'] == 0:
-                raise CommandError(f"Team '{parsed_args.team}' not found")
+                raise CommandError(f"Team with name '{search_name}' not found")
             elif teams['count'] > 1:
-                raise CommandError(f"Multiple teams found with name '{parsed_args.team}'")
+                raise CommandError(f"Multiple teams found with name '{search_name}'")
             team_id = teams['results'][0]['id']
 
         # Build update data
