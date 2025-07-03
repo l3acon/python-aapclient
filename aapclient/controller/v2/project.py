@@ -86,7 +86,7 @@ class CreateProject(ShowOne):
             'name': parsed_args.name,
             'organization': parsed_args.organization,
         }
-        
+
         if parsed_args.description:
             data['description'] = parsed_args.description
         if parsed_args.scm_type:
@@ -101,12 +101,12 @@ class CreateProject(ShowOne):
             data['local_path'] = parsed_args.local_path
 
         project = client.create_project(data)
-        
+
         display_columns = [
-            'id', 'name', 'description', 'organization', 'scm_type', 
+            'id', 'name', 'description', 'organization', 'scm_type',
             'scm_url', 'scm_branch', 'status', 'created', 'modified'
         ]
-        
+
         return (
             display_columns,
             get_dict_properties(project, display_columns)
@@ -145,7 +145,7 @@ class DeleteProject(Command):
                         raise CommandError(f"Multiple projects found with name '{project}'")
                     project_obj = projects['results'][0]
                     project_id = project_obj['id']
-                
+
                 client.delete_project(project_id)
                 print(f"Project '{project}' deleted successfully")
             except Exception as e:
@@ -185,7 +185,7 @@ class ListProject(Lister):
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
-        
+
         params = {}
         if parsed_args.organization:
             params['organization'] = parsed_args.organization
@@ -193,14 +193,14 @@ class ListProject(Lister):
             params['scm_type'] = parsed_args.scm_type
 
         data = client.list_projects(**params)
-        
+
         # Process the data to replace organization ID with name
         for project in data['results']:
             if 'summary_fields' in project and 'organization' in project['summary_fields']:
                 project['organization_name'] = project['summary_fields']['organization']['name']
             else:
                 project['organization_name'] = str(project.get('organization', ''))
-        
+
         if parsed_args.long:
             columns = ('ID', 'Name', 'Description', 'Organization', 'SCM Type', 'SCM URL', 'Status', 'Created')
             display_columns = ['id', 'name', 'description', 'organization_name', 'scm_type', 'scm_url', 'status', 'created']
@@ -252,12 +252,12 @@ class ShowProject(ShowOne):
             project['organization_name'] = str(project.get('organization', ''))
 
         display_columns = [
-            'id', 'name', 'description', 'organization_name', 'scm_type', 
+            'id', 'name', 'description', 'organization_name', 'scm_type',
             'scm_url', 'scm_branch', 'scm_credential', 'local_path',
             'status', 'last_job_run', 'last_job_failed', 'next_job_run',
             'created', 'modified'
         ]
-        
+
         return (
             display_columns,
             get_dict_properties(project, display_columns)
@@ -334,4 +334,4 @@ class SetProject(Command):
             raise CommandError("No changes specified")
 
         client.update_project(project_id, data)
-        print(f"Project '{parsed_args.project}' updated successfully") 
+        print(f"Project '{parsed_args.project}' updated successfully")

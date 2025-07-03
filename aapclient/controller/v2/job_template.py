@@ -54,7 +54,7 @@ class ListJobTemplate(Lister):
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
-        
+
         params = {}
         if parsed_args.organization:
             params['organization'] = parsed_args.organization
@@ -62,7 +62,7 @@ class ListJobTemplate(Lister):
             params['project'] = parsed_args.project
 
         data = client.list_job_templates(**params)
-        
+
         # Process the data to replace project and inventory IDs with names
         for template in data['results']:
             if 'summary_fields' in template and 'project' in template['summary_fields']:
@@ -74,7 +74,7 @@ class ListJobTemplate(Lister):
                 template['inventory_name'] = template['summary_fields']['inventory']['name']
             else:
                 template['inventory_name'] = str(template.get('inventory', ''))
-        
+
         if parsed_args.long:
             columns = ('ID', 'Name', 'Description', 'Project', 'Playbook', 'Inventory', 'Status', 'Created')
             display_columns = ['id', 'name', 'description', 'project_name', 'playbook', 'inventory_name', 'status', 'created']
@@ -131,7 +131,7 @@ class ShowJobTemplate(ShowOne):
             template['inventory_name'] = str(template.get('inventory', ''))
 
         display_columns = [
-            'id', 'name', 'description', 'job_type', 'inventory_name', 'project_name', 
+            'id', 'name', 'description', 'job_type', 'inventory_name', 'project_name',
             'playbook', 'scm_branch', 'forks', 'limit', 'verbosity', 'extra_vars',
             'job_tags', 'force_handlers', 'skip_tags', 'start_at_task',
             'timeout', 'use_fact_cache', 'survey_enabled', 'ask_scm_branch_on_launch',
@@ -141,7 +141,7 @@ class ShowJobTemplate(ShowOne):
             'created', 'modified', 'last_job_run', 'last_job_failed', 'next_job_run',
             'status'
         ]
-        
+
         return (
             display_columns,
             get_dict_properties(template, display_columns)
@@ -221,7 +221,7 @@ class LaunchJobTemplate(ShowOne):
 
         # Build launch data
         launch_data = {}
-        
+
         # Handle extra vars
         extra_vars = {}
         if parsed_args.extra_vars:
@@ -231,7 +231,7 @@ class LaunchJobTemplate(ShowOne):
                     extra_vars[key] = value
                 else:
                     raise CommandError(f"Invalid extra var format: {var}. Use key=value")
-        
+
         if parsed_args.extra_vars_file:
             try:
                 with open(parsed_args.extra_vars_file, 'r') as f:
@@ -239,10 +239,10 @@ class LaunchJobTemplate(ShowOne):
                     extra_vars.update(file_vars)
             except Exception as e:
                 raise CommandError(f"Error reading extra vars file: {e}")
-        
+
         if extra_vars:
             launch_data['extra_vars'] = extra_vars
-        
+
         # Handle other launch options
         if parsed_args.inventory:
             launch_data['inventory'] = parsed_args.inventory
@@ -259,14 +259,14 @@ class LaunchJobTemplate(ShowOne):
 
         # Launch the job
         job = client.launch_job_template(template_id, launch_data)
-        
+
         display_columns = [
             'id', 'name', 'description', 'status', 'started', 'finished',
             'elapsed', 'job_template', 'inventory', 'project', 'playbook',
             'created', 'modified'
         ]
-        
+
         return (
             display_columns,
             get_dict_properties(job, display_columns)
-        ) 
+        )

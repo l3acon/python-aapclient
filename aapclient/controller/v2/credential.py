@@ -52,15 +52,15 @@ class ListCredential(Lister):
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
-        
+
         params = {}
         if parsed_args.organization:
             params['organization'] = parsed_args.organization
         if parsed_args.credential_type:
             params['credential_type'] = parsed_args.credential_type
-            
+
         data = client.list_credentials(**params)
-        
+
         # Process the data to replace IDs with names
         for credential in data.get('results', []):
             # Extract credential type name from summary_fields
@@ -68,13 +68,13 @@ class ListCredential(Lister):
                 credential['credential_type_name'] = credential['summary_fields']['credential_type']['name']
             else:
                 credential['credential_type_name'] = str(credential.get('credential_type', ''))
-            
+
             # Extract organization name from summary_fields
             if 'summary_fields' in credential and 'organization' in credential['summary_fields']:
                 credential['organization_name'] = credential['summary_fields']['organization']['name']
             else:
                 credential['organization_name'] = str(credential.get('organization', ''))
-        
+
         if parsed_args.long:
             columns = ('ID', 'Name', 'Credential Type', 'Organization', 'Description', 'Created', 'Modified')
             column_headers = columns
@@ -90,14 +90,14 @@ class ListCredential(Lister):
                 credential.get('credential_type_name', ''),
                 credential.get('organization_name', ''),
             ]
-            
+
             if parsed_args.long:
                 credential_info.extend([
                     credential.get('description', ''),
                     utils.format_datetime(credential.get('created')),
                     utils.format_datetime(credential.get('modified')),
                 ])
-            
+
             credentials.append(credential_info)
 
         return (column_headers, credentials)
@@ -116,7 +116,7 @@ class ShowCredential(ShowOne):
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
-        
+
         # Find credential by name or ID
         if parsed_args.credential.isdigit():
             credential_id = int(parsed_args.credential)
@@ -126,26 +126,26 @@ class ShowCredential(ShowOne):
             credentials = client.list_credentials(name=parsed_args.credential)
             credential = utils.find_resource(credentials, parsed_args.credential)
             data = client.get_credential(credential['id'])
-        
+
         # Add names from summary_fields
         if 'summary_fields' in data and 'credential_type' in data['summary_fields']:
             data['credential_type_name'] = data['summary_fields']['credential_type']['name']
         else:
             data['credential_type_name'] = str(data.get('credential_type', ''))
-        
+
         if 'summary_fields' in data and 'organization' in data['summary_fields']:
             data['organization_name'] = data['summary_fields']['organization']['name']
         else:
             data['organization_name'] = str(data.get('organization', ''))
-        
+
         # Format the data for display (excluding sensitive input data)
         display_data = []
         fields = [
-            'id', 'name', 'description', 'credential_type_name', 
-            'organization_name', 'created', 'modified', 
+            'id', 'name', 'description', 'credential_type_name',
+            'organization_name', 'created', 'modified',
             'created_by', 'modified_by'
         ]
-        
+
         for field in fields:
             value = data.get(field, '')
             if field in ['created', 'modified']:
@@ -154,9 +154,9 @@ class ShowCredential(ShowOne):
                 value = str(value)
             elif value is None:
                 value = ''
-                
+
             display_data.append((field.replace('_', ' ').title(), value))
-        
+
         return zip(*display_data) if display_data else ((), ())
 
 
@@ -215,7 +215,7 @@ class CreateCredential(ShowOne):
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
-        
+
         # Resolve organization
         if parsed_args.organization.isdigit():
             org_id = int(parsed_args.organization)
@@ -223,17 +223,17 @@ class CreateCredential(ShowOne):
             orgs = client.list_organizations(name=parsed_args.organization)
             org = utils.find_resource(orgs, parsed_args.organization)
             org_id = org['id']
-        
+
         # Prepare credential data
         credential_data = {
             'name': parsed_args.name,
             'organization': org_id,
             'credential_type': parsed_args.credential_type,
         }
-        
+
         if parsed_args.description:
             credential_data['description'] = parsed_args.description
-            
+
         # Build inputs dictionary for credential-specific data
         inputs = {}
         if parsed_args.username:
@@ -250,13 +250,13 @@ class CreateCredential(ShowOne):
             inputs['become_username'] = parsed_args.become_username
         if parsed_args.become_password:
             inputs['become_password'] = parsed_args.become_password
-            
+
         if inputs:
             credential_data['inputs'] = inputs
-        
+
         # Create the credential
         data = client.create_credential(credential_data)
-        
+
         # Display the created credential (without sensitive data)
         display_data = [
             ('ID', data['id']),
@@ -266,7 +266,7 @@ class CreateCredential(ShowOne):
             ('Organization', data.get('organization_name', '')),
             ('Created', utils.format_datetime(data.get('created'))),
         ]
-        
+
         return zip(*display_data) if display_data else ((), ())
 
 
@@ -319,7 +319,7 @@ class SetCredential(Command):
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
-        
+
         # Find credential by name or ID
         if parsed_args.credential.isdigit():
             credential_id = int(parsed_args.credential)
@@ -327,14 +327,14 @@ class SetCredential(Command):
             credentials = client.list_credentials(name=parsed_args.credential)
             credential = utils.find_resource(credentials, parsed_args.credential)
             credential_id = credential['id']
-        
+
         # Build update data
         update_data = {}
         if parsed_args.name:
             update_data['name'] = parsed_args.name
         if parsed_args.description:
             update_data['description'] = parsed_args.description
-            
+
         # Build inputs for credential-specific updates
         inputs = {}
         if parsed_args.username:
@@ -351,14 +351,14 @@ class SetCredential(Command):
             inputs['become_username'] = parsed_args.become_username
         if parsed_args.become_password:
             inputs['become_password'] = parsed_args.become_password
-            
+
         if inputs:
             update_data['inputs'] = inputs
-        
+
         if not update_data:
             self.app.stdout.write("No changes specified\n")
             return
-        
+
         # Update the credential
         client.update_credential(credential_id, update_data)
         self.app.stdout.write(f"Credential {credential_id} updated\n")
@@ -378,7 +378,7 @@ class DeleteCredential(Command):
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
-        
+
         for credential_name_or_id in parsed_args.credential:
             # Find credential by name or ID
             if credential_name_or_id.isdigit():
@@ -389,7 +389,7 @@ class DeleteCredential(Command):
                 credential = utils.find_resource(credentials, credential_name_or_id)
                 credential_id = credential['id']
                 credential_name = credential['name']
-            
+
             # Delete the credential
             client.delete_credential(credential_id)
-            self.app.stdout.write(f"Credential '{credential_name}' deleted\n") 
+            self.app.stdout.write(f"Credential '{credential_name}' deleted\n")

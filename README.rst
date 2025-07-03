@@ -59,7 +59,7 @@ Example ``.env`` file:
     AAP_TOKEN=your-api-token
 
     # OR use username/password
-    # AAP_USERNAME=your-username  
+    # AAP_USERNAME=your-username
     # AAP_PASSWORD=your-password
 
     # Optional
@@ -117,4 +117,4 @@ Each resource supports standard CRUD operations where applicable:
 License
 =======
 
-Apache License 2.0 
+Apache License 2.0

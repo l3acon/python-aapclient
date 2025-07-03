@@ -131,4 +131,4 @@ galaxy_namespace_show = "aapclient.galaxy.v1.namespace:ShowNamespace"
 [tool.pbr]
 readme = "README.rst"
 skip_authors = true
-skip_changelog = true 
+skip_changelog = true

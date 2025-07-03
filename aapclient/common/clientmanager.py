@@ -59,4 +59,4 @@ class ClientManager:
         if self._gateway is None:
             from aapclient.gateway.client import Client
             self._gateway = Client(self.config)
-        return self._gateway 
+        return self._gateway

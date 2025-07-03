@@ -42,14 +42,14 @@ class ListOrganization(Lister):
     def take_action(self, parsed_args):
         # Use Gateway API for listing (identity management)
         client = self.app.client_manager.gateway
-        
+
         data = client.list_organizations()
-        
+
         if parsed_args.long:
             columns = ['id', 'name', 'description', 'managed', 'created', 'modified']
         else:
             columns = ['id', 'name', 'description']
-        
+
         return (
             columns,
             (get_dict_properties(item, columns) for item in data.get('results', []))
@@ -100,7 +100,7 @@ class ShowOrganization(ShowOne):
             merged_org['max_hosts'] = controller_org.get('max_hosts')
             merged_org['custom_virtualenv'] = controller_org.get('custom_virtualenv')
             merged_org['default_environment'] = controller_org.get('default_environment')
-            
+
             # Add related field counts from Controller API (more comprehensive)
             controller_counts = controller_org.get('summary_fields', {}).get('related_field_counts', {})
             merged_org['users'] = controller_counts.get('users', 0)
@@ -123,7 +123,7 @@ class ShowOrganization(ShowOne):
             'users', 'teams', 'projects', 'job_templates', 'inventories',
             'created', 'modified'
         ]
-        
+
         return (
             display_columns,
             get_dict_properties(merged_org, display_columns)
@@ -161,7 +161,7 @@ class CreateOrganization(ShowOne):
         gateway_data = {
             'name': parsed_args.name,
         }
-        
+
         if parsed_args.description:
             gateway_data['description'] = parsed_args.description
 
@@ -180,7 +180,7 @@ class CreateOrganization(ShowOne):
                 merged_org['max_hosts'] = None
 
         display_columns = ['id', 'name', 'description', 'max_hosts', 'created']
-        
+
         return (
             display_columns,
             get_dict_properties(merged_org, display_columns)
@@ -202,7 +202,7 @@ class DeleteOrganization(Command):
 
     def take_action(self, parsed_args):
         gateway_client = self.app.client_manager.gateway
-        
+
         for org_identifier in parsed_args.organizations:
             try:
                 # Try to get by ID first, then by name
@@ -224,7 +224,7 @@ class DeleteOrganization(Command):
                 # Delete from Gateway API (this should cascade to Controller)
                 gateway_client.delete_organization(org_id)
                 self.app.stdout.write(f"Organization '{org['name']}' (ID: {org_id}) deleted\n")
-                
+
             except Exception as e:
                 self.app.stdout.write(f"Failed to delete organization '{org_identifier}': {e}\n")
 
@@ -303,8 +303,8 @@ class SetOrganization(ShowOne):
             raise CommandError("No properties specified to update")
 
         display_columns = ['id', 'name', 'description', 'max_hosts', 'modified']
-        
+
         return (
             display_columns,
             get_dict_properties(updated_org, display_columns)
-        ) 
+        )

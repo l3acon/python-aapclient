@@ -53,22 +53,22 @@ class ListInventory(Lister):
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
-        
+
         params = {}
         if parsed_args.organization:
             params['organization'] = parsed_args.organization
         if parsed_args.kind:
             params['kind'] = parsed_args.kind
-            
+
         data = client.list_inventories(**params)
-        
+
         # Process the data to replace organization ID with name
         for inventory in data.get('results', []):
             if 'summary_fields' in inventory and 'organization' in inventory['summary_fields']:
                 inventory['organization_name'] = inventory['summary_fields']['organization']['name']
             else:
                 inventory['organization_name'] = str(inventory.get('organization', ''))
-        
+
         if parsed_args.long:
             columns = ('ID', 'Name', 'Kind', 'Organization', 'Description', 'Host Count', 'Created', 'Modified')
             column_headers = columns
@@ -85,14 +85,14 @@ class ListInventory(Lister):
                 inventory.get('organization_name', ''),
                 inventory.get('total_hosts', 0),
             ]
-            
+
             if parsed_args.long:
                 inventory_info.insert(4, inventory.get('description', ''))  # Insert description after organization
                 inventory_info.extend([
                     utils.format_datetime(inventory.get('created')),
                     utils.format_datetime(inventory.get('modified')),
                 ])
-            
+
             inventories.append(inventory_info)
 
         return (column_headers, inventories)
@@ -111,7 +111,7 @@ class ShowInventory(ShowOne):
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
-        
+
         # Find inventory by name or ID
         if parsed_args.inventory.isdigit():
             inventory_id = int(parsed_args.inventory)
@@ -121,13 +121,13 @@ class ShowInventory(ShowOne):
             inventories = client.list_inventories(name=parsed_args.inventory)
             inventory = utils.find_resource(inventories, parsed_args.inventory)
             data = client.get_inventory(inventory['id'])
-        
+
         # Add organization name from summary_fields
         if 'summary_fields' in data and 'organization' in data['summary_fields']:
             data['organization_name'] = data['summary_fields']['organization']['name']
         else:
             data['organization_name'] = str(data.get('organization', ''))
-        
+
         # Format the data for display
         display_data = []
         fields = [
@@ -136,7 +136,7 @@ class ShowInventory(ShowOne):
             'total_groups', 'total_inventory_sources', 'inventory_sources_with_failures',
             'created', 'modified', 'created_by', 'modified_by'
         ]
-        
+
         for field in fields:
             value = data.get(field, '')
             if field in ['created', 'modified']:
@@ -151,9 +151,9 @@ class ShowInventory(ShowOne):
                     value = ''
             elif value is None:
                 value = ''
-                
+
             display_data.append((field.replace('_', ' ').title(), value))
-        
+
         return zip(*display_data) if display_data else ((), ())
 
 
@@ -193,7 +193,7 @@ class CreateInventory(ShowOne):
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
-        
+
         # Resolve organization
         if parsed_args.organization.isdigit():
             org_id = int(parsed_args.organization)
@@ -201,32 +201,32 @@ class CreateInventory(ShowOne):
             orgs = client.list_organizations(name=parsed_args.organization)
             org = utils.find_resource(orgs, parsed_args.organization)
             org_id = org['id']
-        
+
         # Prepare inventory data
         inventory_data = {
             'name': parsed_args.name,
             'organization': org_id,
         }
-        
+
         if parsed_args.description:
             inventory_data['description'] = parsed_args.description
-        
+
         if parsed_args.kind:
             inventory_data['kind'] = parsed_args.kind
-            
+
         if parsed_args.host_filter:
             inventory_data['host_filter'] = parsed_args.host_filter
-            
+
         if parsed_args.variables:
             try:
                 import json
                 inventory_data['variables'] = json.loads(parsed_args.variables)
             except json.JSONDecodeError as e:
                 raise utils.CommandError(f"Invalid JSON in variables: {e}")
-        
+
         # Create the inventory
         data = client.create_inventory(inventory_data)
-        
+
         # Display the created inventory
         display_data = [
             ('ID', data['id']),
@@ -238,7 +238,7 @@ class CreateInventory(ShowOne):
             ('Total Hosts', data.get('total_hosts', 0)),
             ('Created', utils.format_datetime(data.get('created'))),
         ]
-        
+
         return zip(*display_data) if display_data else ((), ())
 
 
@@ -271,7 +271,7 @@ class SetInventory(Command):
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
-        
+
         # Find inventory by name or ID
         if parsed_args.inventory.isdigit():
             inventory_id = int(parsed_args.inventory)
@@ -279,7 +279,7 @@ class SetInventory(Command):
             inventories = client.list_inventories(name=parsed_args.inventory)
             inventory = utils.find_resource(inventories, parsed_args.inventory)
             inventory_id = inventory['id']
-        
+
         # Build update data
         update_data = {}
         if parsed_args.name:
@@ -294,11 +294,11 @@ class SetInventory(Command):
                 update_data['variables'] = json.loads(parsed_args.variables)
             except json.JSONDecodeError as e:
                 raise utils.CommandError(f"Invalid JSON in variables: {e}")
-        
+
         if not update_data:
             self.app.stdout.write("No changes specified\n")
             return
-        
+
         # Update the inventory
         client.update_inventory(inventory_id, update_data)
         self.app.stdout.write(f"Inventory {inventory_id} updated\n")
@@ -318,7 +318,7 @@ class DeleteInventory(Command):
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.controller
-        
+
         for inventory_name_or_id in parsed_args.inventory:
             # Find inventory by name or ID
             if inventory_name_or_id.isdigit():
@@ -329,7 +329,7 @@ class DeleteInventory(Command):
                 inventory = utils.find_resource(inventories, inventory_name_or_id)
                 inventory_id = inventory['id']
                 inventory_name = inventory['name']
-            
+
             # Delete the inventory
             client.delete_inventory(inventory_id)
-            self.app.stdout.write(f"Inventory '{inventory_name}' deleted\n") 
+            self.app.stdout.write(f"Inventory '{inventory_name}' deleted\n")

@@ -61,7 +61,7 @@ class ListUser(Lister):
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.gateway
-        
+
         params = {}
         if parsed_args.organization:
             params['organization'] = parsed_args.organization
@@ -73,12 +73,12 @@ class ListUser(Lister):
             params['is_active'] = False
 
         data = client.list_users(**params)
-        
+
         if parsed_args.long:
             columns = ['id', 'username', 'email', 'first_name', 'last_name', 'is_active', 'is_superuser', 'date_joined']
         else:
             columns = ['id', 'username', 'email', 'first_name', 'last_name']
-        
+
         return (
             columns,
             (get_dict_properties(item, columns) for item in data.get('results', []))
@@ -115,11 +115,11 @@ class ShowUser(ShowOne):
 
         # Common user attributes to display (using Gateway API field names)
         display_columns = [
-            'id', 'username', 'email', 'first_name', 'last_name', 
+            'id', 'username', 'email', 'first_name', 'last_name',
             'managed', 'is_superuser', 'is_platform_auditor',
             'created', 'last_login'
         ]
-        
+
         return (
             display_columns,
             get_dict_properties(user, display_columns)
@@ -180,7 +180,7 @@ class CreateUser(ShowOne):
         user_data = {
             'username': parsed_args.username,
         }
-        
+
         if parsed_args.email:
             user_data['email'] = parsed_args.email
         if parsed_args.first_name:
@@ -198,9 +198,9 @@ class CreateUser(ShowOne):
 
         # Create the user
         user = client.create_user(user_data)
-        
+
         display_columns = ['id', 'username', 'email', 'first_name', 'last_name', 'is_superuser', 'date_joined']
-        
+
         return (
             display_columns,
             get_dict_properties(user, display_columns)
@@ -222,7 +222,7 @@ class DeleteUser(Command):
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.gateway
-        
+
         for user_identifier in parsed_args.users:
             try:
                 # Try to get by ID first, then by username
@@ -244,7 +244,7 @@ class DeleteUser(Command):
                 # Delete the user
                 client.delete_user(user_id)
                 self.app.stdout.write(f"User '{user['username']}' (ID: {user_id}) deleted\n")
-                
+
             except Exception as e:
                 self.app.stdout.write(f"Failed to delete user '{user_identifier}': {e}\n")
 
@@ -346,18 +346,18 @@ class SetUser(ShowOne):
             update_data['last_name'] = parsed_args.last_name
         if parsed_args.password:
             update_data['password'] = parsed_args.password
-        
+
         # Handle boolean flags
         if parsed_args.is_active:
             update_data['is_active'] = True
         elif parsed_args.inactive:
             update_data['is_active'] = False
-            
+
         if parsed_args.is_superuser:
             update_data['is_superuser'] = True
         elif parsed_args.no_superuser:
             update_data['is_superuser'] = False
-            
+
         if parsed_args.is_system_auditor:
             update_data['is_system_auditor'] = True
         elif parsed_args.no_system_auditor:
@@ -368,10 +368,10 @@ class SetUser(ShowOne):
 
         # Update the user
         user = client.update_user(user_id, update_data)
-        
+
         display_columns = ['id', 'username', 'email', 'first_name', 'last_name', 'is_active', 'is_superuser', 'modified']
-        
+
         return (
             display_columns,
             get_dict_properties(user, display_columns)
-        ) 
+        )

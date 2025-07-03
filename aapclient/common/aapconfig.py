@@ -35,12 +35,12 @@ class AAPConfig:
         self.username: Optional[str] = os.getenv('AAP_USERNAME')
         self.password: Optional[str] = os.getenv('AAP_PASSWORD')
         self.token: Optional[str] = os.getenv('AAP_TOKEN')
-        
+
         # SSL/TLS configuration
         verify_ssl_env = os.getenv('AAP_VERIFY_SSL', 'true').lower()
         self.verify_ssl: bool = verify_ssl_env in ('true', '1', 'yes', 'on')
         self.ca_bundle: Optional[str] = os.getenv('AAP_CA_BUNDLE')
-        
+
         # Request timeout
         try:
             self.timeout: int = int(os.getenv('AAP_TIMEOUT', '30'))
@@ -51,18 +51,18 @@ class AAPConfig:
         """Validate configuration"""
         if not self.host:
             raise ValueError("AAP host is required. Set AAP_HOST environment variable or use --aap-host")
-        
+
         # Ensure host is a string and properly formatted
         if not isinstance(self.host, str):
             raise ValueError("AAP host must be a string")
-        
+
         # Remove any trailing slashes
         self.host = self.host.rstrip('/')
-        
+
         # Add https:// prefix if not present
         if not self.host.startswith(('http://', 'https://')):
             self.host = f'https://{self.host}'
-        
+
         # Authentication validation
         if not (self.token or (self.username and self.password)):
             raise ValueError(
@@ -95,4 +95,3 @@ class AAPConfig:
                 f"verify_ssl={self.verify_ssl}, ca_bundle='{self.ca_bundle}')")
 
 
- 

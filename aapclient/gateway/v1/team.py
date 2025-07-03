@@ -75,7 +75,7 @@ class ListTeam(Lister):
             columns = ['id', 'name', 'description', 'organization_name', 'created', 'modified']
         else:
             columns = ['id', 'name', 'description', 'organization_name']
-        
+
         return (
             columns,
             (get_dict_properties(item, columns) for item in data.get('results', []))
@@ -119,7 +119,7 @@ class ShowTeam(ShowOne):
             'id', 'name', 'description', 'organization_name',
             'created', 'modified'
         ]
-        
+
         return (
             display_columns,
             get_dict_properties(team, display_columns)
@@ -169,15 +169,15 @@ class CreateTeam(ShowOne):
             'name': parsed_args.name,
             'organization': org_id,
         }
-        
+
         if parsed_args.description:
             team_data['description'] = parsed_args.description
 
         # Create the team
         team = client.create_team(team_data)
-        
+
         display_columns = ['id', 'name', 'description', 'organization', 'created']
-        
+
         return (
             display_columns,
             get_dict_properties(team, display_columns)
@@ -199,7 +199,7 @@ class DeleteTeam(Command):
 
     def take_action(self, parsed_args):
         client = self.app.client_manager.gateway
-        
+
         for team_identifier in parsed_args.teams:
             try:
                 # Try to get by ID first, then by name
@@ -221,7 +221,7 @@ class DeleteTeam(Command):
                 # Delete the team
                 client.delete_team(team_id)
                 self.app.stdout.write(f"Team '{team['name']}' (ID: {team_id}) deleted\n")
-                
+
             except Exception as e:
                 self.app.stdout.write(f"Failed to delete team '{team_identifier}': {e}\n")
 
@@ -295,8 +295,8 @@ class SetTeam(ShowOne):
         updated_team = client.update_team(team_id, update_data)
 
         display_columns = ['id', 'name', 'description', 'organization', 'modified']
-        
+
         return (
             display_columns,
             get_dict_properties(updated_team, display_columns)
-        ) 
+        )

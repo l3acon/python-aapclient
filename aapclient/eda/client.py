@@ -24,12 +24,12 @@ DEFAULT_API_VERSION = '1'
 
 class Client:
     """AAP EDA API Client"""
-    
+
     def __init__(self, config: AAPConfig):
         self.config = config
         # EDA client implementation would go here
-    
+
     def ping(self):
         """Ping the EDA API"""
         # Placeholder implementation
-        return {"status": "ok"} 
+        return {"status": "ok"}

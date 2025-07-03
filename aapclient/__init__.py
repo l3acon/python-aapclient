@@ -18,4 +18,4 @@ try:
     __version__ = pbr.version.VersionInfo('python-aapclient').version_string()
 except Exception:
     # Fallback for development mode
-    __version__ = '0.0.0-dev' 
+    __version__ = '0.0.0-dev'

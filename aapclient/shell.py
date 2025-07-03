@@ -31,7 +31,7 @@ class AAPShell(App):
     def __init__(self):
         # Load commands from entry points
         command_manager = CommandManager('aap.controller.v2')
-        
+
         super().__init__(
             description='AAP (Ansible Automation Platform) command-line client',
             version=self._get_version(),
@@ -52,7 +52,7 @@ class AAPShell(App):
     def build_option_parser(self, description, version):
         """Build option parser with AAP-specific options"""
         parser = super().build_option_parser(description, version)
-        
+
         # AAP connection options
         parser.add_argument(
             '--aap-host',
@@ -85,15 +85,15 @@ class AAPShell(App):
             metavar='<ca-bundle>',
             help='CA bundle file (default: env[AAP_CA_BUNDLE])',
         )
-        
+
         return parser
 
     def prepare_to_run_command(self, cmd):
         """Prepare to run a command, including authentication"""
-        
+
         # Initialize configuration
         config = AAPConfig()
-        
+
         # Override config with command line options
         if self.options.aap_host:
             config.host = self.options.aap_host
@@ -107,13 +107,13 @@ class AAPShell(App):
             config.verify_ssl = self.options.aap_verify_ssl
         if self.options.aap_ca_bundle:
             config.ca_bundle = self.options.aap_ca_bundle
-        
+
         # Validate configuration
         config.validate()
-        
+
         # Initialize client manager
         self.client_manager = ClientManager(config)
-        
+
         return super().prepare_to_run_command(cmd)
 
     def clean_up(self, cmd, result, err):
@@ -121,7 +121,7 @@ class AAPShell(App):
         self.LOG.debug('Clean up %s', cmd.__class__.__name__)
         if err:
             self.LOG.debug('Error during command: %s', err)
-        
+
         return super().clean_up(cmd, result, err)
 
 
@@ -129,10 +129,10 @@ def main(argv=None):
     """Main entry point for the AAP CLI"""
     if argv is None:
         argv = sys.argv[1:]
-    
+
     shell = AAPShell()
     return shell.run(argv)
 
 
 if __name__ == '__main__':
-    sys.exit(main()) 
+    sys.exit(main())

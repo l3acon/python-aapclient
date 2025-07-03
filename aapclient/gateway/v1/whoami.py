@@ -37,29 +37,29 @@ class Whoami(ShowOne):
 
         # Get current user information
         me_response = client.me()
-        
+
         # Extract the user data from the results array
         if 'results' in me_response and me_response['results']:
             me = me_response['results'][0]
         else:
             raise RuntimeError("Unable to retrieve current user information")
-        
+
         # Extract organization information if available
         orgs = []
         if 'summary_fields' in me and 'organizations' in me['summary_fields']:
             orgs = [org['name'] for org in me['summary_fields']['organizations']]
-        
+
         # Add organization names to the data for display
         me['organizations'] = ', '.join(orgs) if orgs else 'None'
 
         # Display columns for current user info
         display_columns = [
-            'id', 'username', 'email', 'first_name', 'last_name', 
+            'id', 'username', 'email', 'first_name', 'last_name',
             'is_superuser', 'is_platform_auditor', 'organizations',
             'last_login', 'created'
         ]
-        
+
         return (
             display_columns,
             get_dict_properties(me, display_columns)
-        ) 
+        )

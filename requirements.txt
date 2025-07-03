@@ -1,4 +1,4 @@
 requests>=2.25.0
 cliff>=4.0.0
 pbr>=6.1.1
-python-dotenv>=1.0.0 
+python-dotenv>=1.0.0
