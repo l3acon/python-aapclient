@@ -64,10 +64,17 @@ class ListTeam(Lister):
 
         data = client.list_teams(**params)
 
+        # Process the data to replace organization ID with name
+        for team in data.get('results', []):
+            if 'summary_fields' in team and 'organization' in team['summary_fields']:
+                team['organization_name'] = team['summary_fields']['organization']['name']
+            else:
+                team['organization_name'] = str(team.get('organization', ''))
+
         if parsed_args.long:
-            columns = ['id', 'name', 'description', 'organization', 'created', 'modified']
+            columns = ['id', 'name', 'description', 'organization_name', 'created', 'modified']
         else:
-            columns = ['id', 'name', 'description', 'organization']
+            columns = ['id', 'name', 'description', 'organization_name']
         
         return (
             columns,
@@ -109,7 +116,7 @@ class ShowTeam(ShowOne):
 
         # Display columns
         display_columns = [
-            'id', 'name', 'description', 'organization', 'organization_name',
+            'id', 'name', 'description', 'organization_name',
             'created', 'modified'
         ]
         

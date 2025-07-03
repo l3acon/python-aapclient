@@ -62,6 +62,13 @@ class ListInventory(Lister):
             
         data = client.list_inventories(**params)
         
+        # Process the data to replace organization ID with name
+        for inventory in data.get('results', []):
+            if 'summary_fields' in inventory and 'organization' in inventory['summary_fields']:
+                inventory['organization_name'] = inventory['summary_fields']['organization']['name']
+            else:
+                inventory['organization_name'] = str(inventory.get('organization', ''))
+        
         if parsed_args.long:
             columns = ('ID', 'Name', 'Kind', 'Organization', 'Description', 'Host Count', 'Created', 'Modified')
             column_headers = columns
@@ -115,11 +122,17 @@ class ShowInventory(ShowOne):
             inventory = utils.find_resource(inventories, parsed_args.inventory)
             data = client.get_inventory(inventory['id'])
         
+        # Add organization name from summary_fields
+        if 'summary_fields' in data and 'organization' in data['summary_fields']:
+            data['organization_name'] = data['summary_fields']['organization']['name']
+        else:
+            data['organization_name'] = str(data.get('organization', ''))
+        
         # Format the data for display
         display_data = []
         fields = [
             'id', 'name', 'description', 'kind', 'host_filter', 'variables',
-            'organization', 'organization_name', 'total_hosts', 'hosts_with_active_failures',
+            'organization_name', 'total_hosts', 'hosts_with_active_failures',
             'total_groups', 'total_inventory_sources', 'inventory_sources_with_failures',
             'created', 'modified', 'created_by', 'modified_by'
         ]

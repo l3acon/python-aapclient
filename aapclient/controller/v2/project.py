@@ -194,12 +194,19 @@ class ListProject(Lister):
 
         data = client.list_projects(**params)
         
+        # Process the data to replace organization ID with name
+        for project in data['results']:
+            if 'summary_fields' in project and 'organization' in project['summary_fields']:
+                project['organization_name'] = project['summary_fields']['organization']['name']
+            else:
+                project['organization_name'] = str(project.get('organization', ''))
+        
         if parsed_args.long:
             columns = ('ID', 'Name', 'Description', 'Organization', 'SCM Type', 'SCM URL', 'Status', 'Created')
-            display_columns = ['id', 'name', 'description', 'organization', 'scm_type', 'scm_url', 'status', 'created']
+            display_columns = ['id', 'name', 'description', 'organization_name', 'scm_type', 'scm_url', 'status', 'created']
         else:
             columns = ('ID', 'Name', 'Description', 'Organization', 'SCM Type', 'Status')
-            display_columns = ['id', 'name', 'description', 'organization', 'scm_type', 'status']
+            display_columns = ['id', 'name', 'description', 'organization_name', 'scm_type', 'status']
 
         return (
             columns,
@@ -238,8 +245,14 @@ class ShowProject(ShowOne):
                 raise CommandError(f"Multiple projects found with name '{parsed_args.project}'")
             project = projects['results'][0]
 
+        # Add organization name from summary_fields
+        if 'summary_fields' in project and 'organization' in project['summary_fields']:
+            project['organization_name'] = project['summary_fields']['organization']['name']
+        else:
+            project['organization_name'] = str(project.get('organization', ''))
+
         display_columns = [
-            'id', 'name', 'description', 'organization', 'scm_type', 
+            'id', 'name', 'description', 'organization_name', 'scm_type', 
             'scm_url', 'scm_branch', 'scm_credential', 'local_path',
             'status', 'last_job_run', 'last_job_failed', 'next_job_run',
             'created', 'modified'

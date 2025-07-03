@@ -61,6 +61,20 @@ class ListCredential(Lister):
             
         data = client.list_credentials(**params)
         
+        # Process the data to replace IDs with names
+        for credential in data.get('results', []):
+            # Extract credential type name from summary_fields
+            if 'summary_fields' in credential and 'credential_type' in credential['summary_fields']:
+                credential['credential_type_name'] = credential['summary_fields']['credential_type']['name']
+            else:
+                credential['credential_type_name'] = str(credential.get('credential_type', ''))
+            
+            # Extract organization name from summary_fields
+            if 'summary_fields' in credential and 'organization' in credential['summary_fields']:
+                credential['organization_name'] = credential['summary_fields']['organization']['name']
+            else:
+                credential['organization_name'] = str(credential.get('organization', ''))
+        
         if parsed_args.long:
             columns = ('ID', 'Name', 'Credential Type', 'Organization', 'Description', 'Created', 'Modified')
             column_headers = columns
@@ -113,11 +127,22 @@ class ShowCredential(ShowOne):
             credential = utils.find_resource(credentials, parsed_args.credential)
             data = client.get_credential(credential['id'])
         
+        # Add names from summary_fields
+        if 'summary_fields' in data and 'credential_type' in data['summary_fields']:
+            data['credential_type_name'] = data['summary_fields']['credential_type']['name']
+        else:
+            data['credential_type_name'] = str(data.get('credential_type', ''))
+        
+        if 'summary_fields' in data and 'organization' in data['summary_fields']:
+            data['organization_name'] = data['summary_fields']['organization']['name']
+        else:
+            data['organization_name'] = str(data.get('organization', ''))
+        
         # Format the data for display (excluding sensitive input data)
         display_data = []
         fields = [
-            'id', 'name', 'description', 'credential_type', 'credential_type_name',
-            'organization', 'organization_name', 'created', 'modified', 
+            'id', 'name', 'description', 'credential_type_name', 
+            'organization_name', 'created', 'modified', 
             'created_by', 'modified_by'
         ]
         

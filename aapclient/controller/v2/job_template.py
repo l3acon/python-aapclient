@@ -63,12 +63,24 @@ class ListJobTemplate(Lister):
 
         data = client.list_job_templates(**params)
         
+        # Process the data to replace project and inventory IDs with names
+        for template in data['results']:
+            if 'summary_fields' in template and 'project' in template['summary_fields']:
+                template['project_name'] = template['summary_fields']['project']['name']
+            else:
+                template['project_name'] = str(template.get('project', ''))
+
+            if 'summary_fields' in template and 'inventory' in template['summary_fields']:
+                template['inventory_name'] = template['summary_fields']['inventory']['name']
+            else:
+                template['inventory_name'] = str(template.get('inventory', ''))
+        
         if parsed_args.long:
             columns = ('ID', 'Name', 'Description', 'Project', 'Playbook', 'Inventory', 'Status', 'Created')
-            display_columns = ['id', 'name', 'description', 'project', 'playbook', 'inventory', 'status', 'created']
+            display_columns = ['id', 'name', 'description', 'project_name', 'playbook', 'inventory_name', 'status', 'created']
         else:
             columns = ('ID', 'Name', 'Project', 'Playbook', 'Status')
-            display_columns = ['id', 'name', 'project', 'playbook', 'status']
+            display_columns = ['id', 'name', 'project_name', 'playbook', 'status']
 
         return (
             columns,
@@ -107,8 +119,19 @@ class ShowJobTemplate(ShowOne):
                 raise CommandError(f"Multiple job templates found with name '{parsed_args.job_template}'")
             template = templates['results'][0]
 
+        # Add project and inventory names from summary_fields
+        if 'summary_fields' in template and 'project' in template['summary_fields']:
+            template['project_name'] = template['summary_fields']['project']['name']
+        else:
+            template['project_name'] = str(template.get('project', ''))
+
+        if 'summary_fields' in template and 'inventory' in template['summary_fields']:
+            template['inventory_name'] = template['summary_fields']['inventory']['name']
+        else:
+            template['inventory_name'] = str(template.get('inventory', ''))
+
         display_columns = [
-            'id', 'name', 'description', 'job_type', 'inventory', 'project', 
+            'id', 'name', 'description', 'job_type', 'inventory_name', 'project_name', 
             'playbook', 'scm_branch', 'forks', 'limit', 'verbosity', 'extra_vars',
             'job_tags', 'force_handlers', 'skip_tags', 'start_at_task',
             'timeout', 'use_fact_cache', 'survey_enabled', 'ask_scm_branch_on_launch',

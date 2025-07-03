@@ -53,6 +53,26 @@ class ListJob(Lister):
             
         data = client.get('jobs/', params=params)
         
+        # Process the data to replace IDs with names
+        for job in data.get('results', []):
+            # Extract job template name from summary_fields
+            if 'summary_fields' in job and 'job_template' in job['summary_fields']:
+                job['job_template_name'] = job['summary_fields']['job_template']['name']
+            else:
+                job['job_template_name'] = str(job.get('job_template', ''))
+            
+            # Extract inventory name from summary_fields
+            if 'summary_fields' in job and 'inventory' in job['summary_fields']:
+                job['inventory_name'] = job['summary_fields']['inventory']['name']
+            else:
+                job['inventory_name'] = str(job.get('inventory', ''))
+            
+            # Extract project name from summary_fields
+            if 'summary_fields' in job and 'project' in job['summary_fields']:
+                job['project_name'] = job['summary_fields']['project']['name']
+            else:
+                job['project_name'] = str(job.get('project', ''))
+        
         if parsed_args.long:
             columns = ('ID', 'Name', 'Status', 'Started', 'Finished', 'Elapsed', 'Job Template', 'Inventory')
             column_headers = columns
@@ -73,8 +93,8 @@ class ListJob(Lister):
             if parsed_args.long:
                 job_info.extend([
                     utils.format_duration(job.get('started'), job.get('finished')),
-                    job.get('job_template', ''),
-                    job.get('inventory', ''),
+                    job.get('job_template_name', ''),
+                    job.get('inventory_name', ''),
                 ])
             
             jobs.append(job_info)
@@ -99,13 +119,40 @@ class ShowJob(ShowOne):
         job_id = parsed_args.job
         data = client.get(f'jobs/{job_id}/')
         
+        # Add names from summary_fields
+        if 'summary_fields' in data and 'job_template' in data['summary_fields']:
+            data['job_template_name'] = data['summary_fields']['job_template']['name']
+        else:
+            data['job_template_name'] = str(data.get('job_template', ''))
+        
+        if 'summary_fields' in data and 'inventory' in data['summary_fields']:
+            data['inventory_name'] = data['summary_fields']['inventory']['name']
+        else:
+            data['inventory_name'] = str(data.get('inventory', ''))
+        
+        if 'summary_fields' in data and 'project' in data['summary_fields']:
+            data['project_name'] = data['summary_fields']['project']['name']
+        else:
+            data['project_name'] = str(data.get('project', ''))
+        
+        if 'summary_fields' in data and 'execution_environment' in data['summary_fields']:
+            data['execution_environment_name'] = data['summary_fields']['execution_environment']['name']
+        else:
+            data['execution_environment_name'] = str(data.get('execution_environment', ''))
+        
+        if 'summary_fields' in data and 'instance_group' in data['summary_fields']:
+            data['instance_group_name'] = data['summary_fields']['instance_group']['name']
+        else:
+            data['instance_group_name'] = str(data.get('instance_group', ''))
+        
         # Format the data for display
         display_data = []
         fields = [
             'id', 'name', 'description', 'status', 'failed', 'started', 'finished',
-            'elapsed', 'job_template', 'job_type', 'inventory', 'project', 'playbook',
+            'elapsed', 'job_template_name', 'job_type', 'inventory_name', 'project_name', 'playbook',
             'forks', 'limit', 'verbosity', 'extra_vars', 'job_tags', 'skip_tags',
-            'execution_node', 'controller_node', 'launched_by', 'created', 'modified', 'created_by', 'modified_by'
+            'execution_node', 'controller_node', 'execution_environment_name', 'instance_group_name',
+            'launched_by', 'created', 'modified', 'created_by', 'modified_by'
         ]
         
         for field in fields:
