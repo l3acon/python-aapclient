@@ -1,0 +1,217 @@
+# AAP CLI Development Context
+
+## Project Overview
+
+**python-aapclient** is a command-line client for Ansible Automation Platform (AAP) that provides a unified interface for managing AAP resources. It's modeled after python-openstackclient and follows similar patterns for command structure, organization, and output formatting.
+
+### Core Architecture
+
+- **Multi-API Support**: Integrates with AAP's Gateway API (identity management) and Controller API (automation operations)
+- **Cliff Framework**: Built on OpenStack's Cliff framework for consistent CLI patterns
+- **Resource Management**: CRUD operations for organizations, users, teams, projects, job templates, inventories, credentials, and jobs
+- **Dual API Strategy**: Uses Gateway API for identity resources (AAP 2.5+) and Controller API for automation resources
+
+### Key Directories
+
+```
+python-aapclient/
+├── aapclient/
+│   ├── common/           # Shared utilities and base classes
+│   ├── controller/v2/    # Controller API commands
+│   ├── gateway/v1/       # Gateway API commands
+│   ├── eda/             # Event-Driven Ansible integration
+│   └── galaxy/          # Galaxy content management
+```
+
+## Recent Major Improvements
+
+### 1. Error Handling Standardization (Completed)
+
+**Problem**: Inconsistent error messages between numeric IDs and named resources.
+- Named resources: `Organization 'foo' not found`
+- Numeric IDs: Raw API errors with full URLs
+
+**Solution**: Implemented consistent error handling across all show commands:
+- Added try-catch blocks for numeric ID lookups
+- Convert API errors to user-friendly messages
+- Standardized error format: `Resource 'identifier' not found`
+
+**Files Modified**: All show command implementations in controller/v2/ and gateway/v1/
+
+### 2. Numeric Name vs ID Resolution (Completed)
+
+**Problem**: Resources with numeric names (e.g., organization named "420") couldn't be accessed when the CLI assumed numeric strings were always IDs.
+
+**Solution**: Implemented mutually exclusive flag pattern:
+- `--id <number>` for explicit ID lookup
+- `--name <string>` for explicit name lookup
+- Positional argument defaults to name lookup
+- Cross-validation when both ID and positional name provided
+
+**Pattern Applied To**:
+- ShowProject, ShowJobTemplate, ShowInventory, ShowCredential
+- ShowOrganization, ShowUser, ShowTeam
+- DeleteInventory, DeleteCredential, DeleteOrganization, DeleteUser, DeleteTeam
+- SetOrganization, SetTeam
+
+### 3. Visual Name Formatting (Completed)
+
+**Problem**: Numeric names displayed without quotes could be confused with IDs.
+
+**Solution**:
+- Added `format_name()` utility function in `utils.py`
+- Automatically wraps numeric names in double quotes
+- Applied to all tabular output via `get_dict_properties()`
+- Examples: `"420"` vs `420` (ID), `"123"` vs `123` (ID)
+
+### 4. Documentation Modernization (Completed)
+
+**Change**: Converted README.rst to README.md with proper Markdown formatting
+**Updated**: pyproject.toml and setup.cfg to reference new README.md
+
+## Command Patterns & Conventions
+
+### Standard CRUD Operations
+
+All resources follow consistent command patterns:
+```bash
+aap <resource> list [--long] [--filters...]
+aap <resource> show <identifier> [--id <id>] [--name <name>]
+aap <resource> create <name> [--options...]
+aap <resource> set <identifier> [--id <id>] [--name <name>] [--updates...]
+aap <resource> delete <identifier> [--id <id>] [--name <name>]
+```
+
+### Mutually Exclusive Flag Pattern
+
+For commands that accept resource identifiers:
+```python
+# Create mutually exclusive group for --id and --name
+group = parser.add_mutually_exclusive_group()
+group.add_argument('--id', metavar='<id>', type=int, help='Resource ID')
+group.add_argument('--name', metavar='<name>', help='Resource name')
+
+# Validation logic:
+if parsed_args.id and parsed_args.resource:
+    # Cross-validate ID and name refer to same resource
+elif parsed_args.id:
+    # Direct ID lookup
+else:
+    # Name lookup (default behavior)
+```
+
+### Error Handling Patterns
+
+```python
+from aapclient.common.utils import CommandError
+
+try:
+    resource = client.get_resource(resource_id)
+except (ControllerClientError, GatewayClientError):
+    raise CommandError(f"Resource with ID {resource_id} not found")
+```
+
+### Output Formatting
+
+```python
+from aapclient.common.utils import get_dict_properties, format_name
+
+# For success messages with names
+self.app.stdout.write(f"Resource {format_name(resource_name)} deleted\n")
+
+# For tabular output (automatic name formatting)
+return (columns, get_dict_properties(data, columns))
+```
+
+## Key Utility Functions
+
+### `aapclient/common/utils.py`
+
+- **`format_name(name)`**: Wraps numeric names in quotes for visual distinction
+- **`get_dict_properties(data, columns)`**: Extracts and formats data for tabular display
+- **`find_resource(resources, name_or_id)`**: Generic resource lookup with error handling
+- **`format_datetime(dt_string)`**: Consistent datetime formatting
+- **`CommandError`**: Standard exception for CLI errors
+
+## Testing Approach
+
+### Manual Testing Patterns
+
+Test the three main scenarios for any resource:
+```bash
+# 1. Regular name lookup
+aap resource show "MyResource"
+
+# 2. Numeric name lookup
+aap resource show --name "123"
+
+# 3. ID lookup
+aap resource show --id 123
+
+# 4. Cross-validation
+aap resource show --id 123 "MyResource"  # Should validate they match
+```
+
+### Error Cases to Verify
+
+- Resource not found (both ID and name)
+- Ambiguous references (if fallback logic exists)
+- Mismatched ID and name in cross-validation
+- Invalid arguments (mutually exclusive flags)
+
+## Development Guidelines
+
+### Adding New Commands
+
+1. **Follow established patterns**: Use existing commands as templates
+2. **Implement mutually exclusive flags**: For any command accepting resource identifiers
+3. **Use utility functions**: `format_name()`, `get_dict_properties()`, `CommandError`
+4. **Cross-validate**: When both ID and name provided, ensure they match
+5. **Consistent error messages**: Use standardized format for not found errors
+
+### API Client Usage
+
+- **Gateway API**: For identity resources (organizations, users, teams)
+- **Controller API**: For automation resources (projects, templates, inventories)
+- **Error handling**: Always wrap API calls in try-catch with user-friendly errors
+
+### Code Organization
+
+- **Keep commands focused**: Single responsibility per command class
+- **Shared logic in utils**: Don't duplicate validation or formatting logic
+- **Consistent imports**: Use established import patterns
+- **Documentation**: Include helpful docstrings and argument descriptions
+
+## Current State & Considerations
+
+### Completed Improvements
+
+✅ Consistent error handling across all APIs
+✅ Safe numeric name vs ID resolution
+✅ Visual formatting with quoted numeric names
+✅ Mutually exclusive flag patterns
+✅ Comprehensive command coverage
+✅ Modern Markdown documentation
+
+### Architecture Strengths
+
+- Clean separation between Gateway and Controller APIs
+- Consistent command patterns following OpenStack client model
+- Robust error handling and user feedback
+- Flexible resource identification (ID vs name)
+- Visual clarity for numeric names vs IDs
+
+### Future Considerations
+
+- **Testing**: Automated test suite for command patterns
+- **Documentation**: Auto-generated command reference from help text
+
+### Development Workflow
+
+1. **Environment Setup**: Use `.venv` with `pip install -e .`
+2. **Configuration**: Set up `.env` file with AAP credentials
+3. **Testing**: Manual testing with real AAP instance
+4. **Patterns**: Follow established command and error handling patterns
+5. **Validation**: Test all three resource identification methods
+
+This codebase represents a mature, well-structured CLI tool with consistent patterns and robust error handling. New contributors should focus on following established conventions and leveraging the comprehensive utility functions already in place.
