@@ -21,7 +21,7 @@ from cliff.command import Command
 from cliff.lister import Lister
 from cliff.show import ShowOne
 
-from aapclient.common.utils import get_dict_properties, CommandError, format_name
+from aapclient.common.utils import get_dict_properties, CommandError, format_name, format_datetime
 
 
 LOG = logging.getLogger(__name__)
@@ -74,14 +74,29 @@ class ListUser(Lister):
 
         data = client.list_users(**params)
 
+        # Process the data to add GUI-aligned fields
+        for user in data.get('results', []):
+            # Determine user type based on permissions
+            user_type = 'Normal'
+            if user.get('is_superuser'):
+                user_type = 'System Administrator'
+            elif user.get('is_platform_auditor'):
+                user_type = 'System Auditor'
+            user['user_type'] = user_type
+
+            # Format last login timestamp
+            user['last_login_formatted'] = format_datetime(user.get('last_login'))
+
         if parsed_args.long:
-            columns = ['id', 'username', 'email', 'first_name', 'last_name', 'is_active', 'is_superuser', 'date_joined']
+            columns = ('ID', 'Name', 'User Type', 'Email', 'First Name', 'Last Name', 'Last Login', 'Active', 'Created')
+            display_columns = ['id', 'username', 'user_type', 'email', 'first_name', 'last_name', 'last_login_formatted', 'is_active', 'date_joined']
         else:
-            columns = ['id', 'username', 'email', 'first_name', 'last_name']
+            columns = ('ID', 'Name', 'User Type', 'Email', 'First Name', 'Last Name', 'Last Login')
+            display_columns = ['id', 'username', 'user_type', 'email', 'first_name', 'last_name', 'last_login_formatted']
 
         return (
             columns,
-            (get_dict_properties(item, columns) for item in data.get('results', []))
+            (get_dict_properties(item, display_columns) for item in data.get('results', []))
         )
 
 

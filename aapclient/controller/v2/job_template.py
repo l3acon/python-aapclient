@@ -21,7 +21,7 @@ import json
 from cliff.lister import Lister
 from cliff.show import ShowOne
 
-from aapclient.common.utils import CommandError, get_dict_properties, format_name
+from aapclient.common.utils import CommandError, get_dict_properties, format_name, format_datetime
 
 
 LOG = logging.getLogger(__name__)
@@ -63,24 +63,29 @@ class ListJobTemplate(Lister):
 
         data = client.list_job_templates(**params)
 
-        # Process the data to replace project and inventory IDs with names
+        # Process the data to extract organization, labels, and format data
         for template in data['results']:
-            if 'summary_fields' in template and 'project' in template['summary_fields']:
-                template['project_name'] = template['summary_fields']['project']['name']
+            # Extract organization name from summary_fields
+            if 'summary_fields' in template and 'organization' in template['summary_fields']:
+                template['organization_name'] = template['summary_fields']['organization']['name']
             else:
-                template['project_name'] = str(template.get('project', ''))
+                template['organization_name'] = ''
 
-            if 'summary_fields' in template and 'inventory' in template['summary_fields']:
-                template['inventory_name'] = template['summary_fields']['inventory']['name']
-            else:
-                template['inventory_name'] = str(template.get('inventory', ''))
+            # Extract labels from job_tags
+            labels = ''
+            if template.get('job_tags'):
+                labels = template.get('job_tags', '')
+            template['labels'] = labels
+
+            # Format last job run time
+            template['last_job_run_formatted'] = format_datetime(template.get('last_job_run'))
 
         if parsed_args.long:
-            columns = ('ID', 'Name', 'Description', 'Project', 'Playbook', 'Inventory', 'Status', 'Created')
-            display_columns = ['id', 'name', 'description', 'project_name', 'playbook', 'inventory_name', 'status', 'created']
+            columns = ('ID', 'Name', 'Type', 'Labels', 'Organization', 'Last Run', 'Description', 'Project', 'Created')
+            display_columns = ['id', 'name', 'job_type', 'labels', 'organization_name', 'last_job_run_formatted', 'description', 'playbook', 'created']
         else:
-            columns = ('ID', 'Name', 'Project', 'Playbook', 'Status')
-            display_columns = ['id', 'name', 'project_name', 'playbook', 'status']
+            columns = ('ID', 'Name', 'Type', 'Labels', 'Organization', 'Last Run')
+            display_columns = ['id', 'name', 'job_type', 'labels', 'organization_name', 'last_job_run_formatted']
 
         return (
             columns,

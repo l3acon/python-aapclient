@@ -98,12 +98,20 @@ def format_duration(start_time: Optional[str], end_time: Optional[str]) -> str:
         duration = end_dt - start_dt
         total_seconds = int(duration.total_seconds())
 
-        # Format as HH:MM:SS
+        # Format as "1h 2m 5s" style, omitting zero values
         hours = total_seconds // 3600
         minutes = (total_seconds % 3600) // 60
         seconds = total_seconds % 60
 
-        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        parts = []
+        if hours > 0:
+            parts.append(f"{hours}h")
+        if minutes > 0:
+            parts.append(f"{minutes}m")
+        if seconds > 0 or not parts:  # Always show seconds if nothing else, or if seconds > 0
+            parts.append(f"{seconds}s")
+
+        return " ".join(parts)
     except (ValueError, TypeError):
         return ''
 

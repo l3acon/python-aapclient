@@ -70,26 +70,58 @@ class ListInventory(Lister):
             else:
                 inventory['organization_name'] = str(inventory.get('organization', ''))
 
+        # GUI-aligned columns: ID, Name, Status, Type, Organization, Labels, Hosts, Host Failures, Groups, Sources, Source Failures
+        columns = ('ID', 'Name', 'Status', 'Type', 'Organization', 'Labels', 'Hosts', 'Host Failures', 'Groups', 'Sources', 'Source Failures')
+        column_headers = columns
+
         if parsed_args.long:
-            columns = ('ID', 'Name', 'Kind', 'Organization', 'Description', 'Host Count', 'Created', 'Modified')
-            column_headers = columns
-        else:
-            columns = ('ID', 'Name', 'Kind', 'Organization', 'Host Count')
+            # Long format adds Description, Created, Modified while preserving primary column order
+            columns = ('ID', 'Name', 'Status', 'Type', 'Organization', 'Labels', 'Hosts', 'Host Failures', 'Groups', 'Sources', 'Source Failures', 'Description', 'Created', 'Modified')
             column_headers = columns
 
         inventories = []
         for inventory in data.get('results', []):
+            # Determine status - inventories may not have explicit status, use sync status or 'Ready'
+            status = 'Ready'  # Default status for inventories
+            if inventory.get('has_inventory_sources', False):
+                if inventory.get('inventory_sources_with_failures', 0) > 0:
+                    status = 'Failed'
+                elif inventory.get('pending_deletion', False):
+                    status = 'Deleting'
+                # Add other status logic as needed
+
+            # Format type (convert 'kind' field)
+            inventory_type = inventory.get('kind', '')
+            if inventory_type == '':
+                inventory_type = 'Inventory'
+            elif inventory_type == 'smart':
+                inventory_type = 'Smart Inventory'
+
+            # Handle labels - may be in variables or separate field
+            labels = ''
+            if 'variables' in inventory and isinstance(inventory['variables'], dict):
+                # Look for labels in variables
+                vars_dict = inventory['variables']
+                if 'labels' in vars_dict:
+                    labels = ', '.join(vars_dict['labels']) if isinstance(vars_dict['labels'], list) else str(vars_dict['labels'])
+
             inventory_info = [
                 inventory['id'],
                 inventory.get('name', ''),
-                inventory.get('kind', 'regular'),
+                status,
+                inventory_type,
                 inventory.get('organization_name', ''),
+                labels,
                 inventory.get('total_hosts', 0),
+                inventory.get('hosts_with_active_failures', 0),
+                inventory.get('total_groups', 0),
+                inventory.get('total_inventory_sources', 0),
+                inventory.get('inventory_sources_with_failures', 0),
             ]
 
             if parsed_args.long:
-                inventory_info.insert(4, inventory.get('description', ''))  # Insert description after organization
                 inventory_info.extend([
+                    inventory.get('description', ''),
                     utils.format_datetime(inventory.get('created')),
                     utils.format_datetime(inventory.get('modified')),
                 ])

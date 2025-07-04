@@ -87,6 +87,25 @@ python-aapclient/
 
 **Files Modified**: `aapclient/gateway/client.py`, `aapclient/common/ping.py`
 
+### 6. GUI-Aligned List Commands (Completed)
+
+**Problem**: CLI list commands didn't match AAP GUI column layouts, causing inconsistent user experience between interfaces.
+
+**Solution**: Updated list commands to mirror GUI exactly:
+- **Duration Format**: Modified `format_duration()` in `utils.py` to use "1h 2m 5s" format instead of "01:02:05", omitting zero values
+- **Team List**: Removed description column from both regular and long formats
+- **Template List**: Changed to GUI columns (id, name, type, labels, organization, last run):
+  - Added `job_type` for Type column
+  - Extracted labels from `job_tags` field
+  - Added organization name from `summary_fields.organization.name`
+  - Formatted `last_job_run` timestamp with `format_datetime()`
+- **User List**: Changed to GUI columns (id, name, user type, email, first name, last name, last login):
+  - Added dynamic User Type based on permissions (System Administrator, System Auditor, Normal)
+  - Formatted `last_login` timestamp with `format_datetime()`
+  - Renamed username column to Name for GUI consistency
+
+**Files Modified**: `aapclient/common/utils.py`, `aapclient/gateway/v1/team.py`, `aapclient/controller/v2/job_template.py`, `aapclient/gateway/v1/user.py`
+
 ## Command Patterns & Conventions
 
 ### Standard CRUD Operations
@@ -158,6 +177,7 @@ return (columns, get_dict_properties(data, columns))
 - **`get_dict_properties(data, columns)`**: Extracts and formats data for tabular display
 - **`find_resource(resources, name_or_id)`**: Generic resource lookup with error handling
 - **`format_datetime(dt_string)`**: Consistent datetime formatting
+- **`format_duration(start_time, end_time)`**: Formats time spans as "1h 2m 5s" (omits zero values)
 - **`CommandError`**: Standard exception for CLI errors
 
 ## Testing Approach
@@ -220,6 +240,8 @@ aap resource show --id 123 "MyResource"  # Should validate they match
 ✅ Comprehensive command coverage
 ✅ Modern Markdown documentation
 ✅ Enhanced ping command with dual API support
+✅ GUI-aligned list commands (team, template, user) with matching column layouts
+✅ Improved duration formatting ("1h 2m 5s" vs "01:02:05")
 
 ### Architecture Strengths
 

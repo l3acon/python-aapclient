@@ -73,28 +73,38 @@ class ListJob(Lister):
             else:
                 job['project_name'] = str(job.get('project', ''))
 
+        # GUI-aligned columns: ID, Name, Status, Type, Labels, Duration, Start Time, Finish Time
+        columns = ('ID', 'Name', 'Status', 'Type', 'Labels', 'Duration', 'Start Time', 'Finish Time')
+        column_headers = columns
+
         if parsed_args.long:
-            columns = ('ID', 'Name', 'Status', 'Started', 'Finished', 'Elapsed', 'Job Template', 'Inventory')
-            column_headers = columns
-        else:
-            columns = ('ID', 'Name', 'Status', 'Started', 'Finished')
+            # Long format adds Job Template, Inventory, Created while preserving primary column order
+            columns = ('ID', 'Name', 'Status', 'Type', 'Labels', 'Duration', 'Start Time', 'Finish Time', 'Job Template', 'Inventory', 'Created')
             column_headers = columns
 
         jobs = []
         for job in data.get('results', []):
+            # Extract labels from job_tags
+            labels = ''
+            if job.get('job_tags'):
+                labels = job.get('job_tags', '')
+
             job_info = [
                 job['id'],
                 job.get('name', ''),
                 job.get('status', ''),
+                job.get('job_type', ''),
+                labels,
+                utils.format_duration(job.get('started'), job.get('finished')),
                 utils.format_datetime(job.get('started')),
                 utils.format_datetime(job.get('finished')),
             ]
 
             if parsed_args.long:
                 job_info.extend([
-                    utils.format_duration(job.get('started'), job.get('finished')),
                     job.get('job_template_name', ''),
                     job.get('inventory_name', ''),
+                    utils.format_datetime(job.get('created')),
                 ])
 
             jobs.append(job_info)

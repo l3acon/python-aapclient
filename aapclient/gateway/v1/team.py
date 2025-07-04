@@ -72,9 +72,9 @@ class ListTeam(Lister):
                 team['organization_name'] = str(team.get('organization', ''))
 
         if parsed_args.long:
-            columns = ['id', 'name', 'description', 'organization_name', 'created', 'modified']
+            columns = ['id', 'name', 'organization_name', 'created', 'modified']
         else:
-            columns = ['id', 'name', 'description', 'organization_name']
+            columns = ['id', 'name', 'organization_name']
 
         return (
             columns,

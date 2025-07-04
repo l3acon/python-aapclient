@@ -269,12 +269,14 @@ class ListProject(Lister):
             else:
                 project['organization_name'] = str(project.get('organization', ''))
 
+        # GUI-aligned columns: ID, Name, Status, SCM Type, Revision, Organization
+        columns = ('ID', 'Name', 'Status', 'SCM Type', 'Revision', 'Organization')
+        display_columns = ['id', 'name', 'status', 'scm_type', 'scm_revision', 'organization_name']
+
         if parsed_args.long:
-            columns = ('ID', 'Name', 'Description', 'Organization', 'SCM Type', 'SCM URL', 'Status', 'Created')
-            display_columns = ['id', 'name', 'description', 'organization_name', 'scm_type', 'scm_url', 'status', 'created']
-        else:
-            columns = ('ID', 'Name', 'Description', 'Organization', 'SCM Type', 'Status')
-            display_columns = ['id', 'name', 'description', 'organization_name', 'scm_type', 'status']
+            # Long format adds Description, SCM URL, Created while preserving primary column order
+            columns = ('ID', 'Name', 'Status', 'SCM Type', 'Revision', 'Organization', 'Description', 'SCM URL', 'Created')
+            display_columns = ['id', 'name', 'status', 'scm_type', 'scm_revision', 'organization_name', 'description', 'scm_url', 'created']
 
         return (
             columns,

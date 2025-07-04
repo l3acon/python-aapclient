@@ -41,18 +41,37 @@ class ListOrganization(Lister):
 
     def take_action(self, parsed_args):
         # Use Gateway API for listing (identity management)
-        client = self.app.client_manager.gateway
+        gateway_client = self.app.client_manager.gateway
+        controller_client = self.app.client_manager.controller
 
-        data = client.list_organizations()
+        data = gateway_client.list_organizations()
+
+        # Enhance organization data with user and team counts
+        for org in data.get('results', []):
+            # Try to get counts from Controller API first (more comprehensive)
+            try:
+                controller_org = controller_client.get_organization(org['id'])
+                controller_counts = controller_org.get('summary_fields', {}).get('related_field_counts', {})
+                org['users'] = controller_counts.get('users', 0)
+                org['teams'] = controller_counts.get('teams', 0)
+            except Exception:
+                # Fall back to Gateway API counts if Controller API unavailable
+                gateway_counts = org.get('summary_fields', {}).get('related_field_counts', {})
+                org['users'] = gateway_counts.get('users', 0)
+                org['teams'] = gateway_counts.get('teams', 0)
+
+        # GUI-aligned columns: ID, Name, Users, Teams
+        columns = ['ID', 'Name', 'Users', 'Teams']
+        display_columns = ['id', 'name', 'users', 'teams']
 
         if parsed_args.long:
-            columns = ['id', 'name', 'description', 'managed', 'created', 'modified']
-        else:
-            columns = ['id', 'name', 'description']
+            # Long format adds Description, Managed, Created, Modified while preserving primary column order
+            columns = ['ID', 'Name', 'Users', 'Teams', 'Description', 'Managed', 'Created', 'Modified']
+            display_columns = ['id', 'name', 'users', 'teams', 'description', 'managed', 'created', 'modified']
 
         return (
             columns,
-            (get_dict_properties(item, columns) for item in data.get('results', []))
+            (get_dict_properties(item, display_columns) for item in data.get('results', []))
         )
 
 
