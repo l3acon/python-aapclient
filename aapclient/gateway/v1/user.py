@@ -72,6 +72,9 @@ class ListUser(Lister):
         elif parsed_args.inactive:
             params['is_active'] = False
 
+        # Sort by ID for consistency with other list commands
+        params['order_by'] = 'id'
+
         data = client.list_users(**params)
 
         # Process the data to add GUI-aligned fields

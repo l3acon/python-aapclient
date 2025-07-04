@@ -60,6 +60,9 @@ class ListCredential(Lister):
         if parsed_args.credential_type:
             params['credential_type'] = parsed_args.credential_type
 
+        # Sort by ID for consistency with other list commands
+        params['order_by'] = 'id'
+
         data = client.list_credentials(**params)
 
         # Process the data to replace IDs with names

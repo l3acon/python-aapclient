@@ -44,7 +44,8 @@ class ListOrganization(Lister):
         gateway_client = self.app.client_manager.gateway
         controller_client = self.app.client_manager.controller
 
-        data = gateway_client.list_organizations()
+        # Sort by ID for consistency with other list commands
+        data = gateway_client.list_organizations(order_by='id')
 
         # Enhance organization data with user and team counts
         for org in data.get('results', []):

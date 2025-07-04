@@ -61,6 +61,9 @@ class ListJobTemplate(Lister):
         if parsed_args.project:
             params['project'] = parsed_args.project
 
+        # Sort by ID for consistency with other list commands
+        params['order_by'] = 'id'
+
         data = client.list_job_templates(**params)
 
         # Process the data to extract organization, labels, and format data

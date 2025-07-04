@@ -62,6 +62,9 @@ class ListTeam(Lister):
                     raise CommandError(f"Multiple organizations found with name '{parsed_args.organization}'")
                 params['organization'] = orgs['results'][0]['id']
 
+        # Sort by ID for consistency with other list commands
+        params['order_by'] = 'id'
+
         data = client.list_teams(**params)
 
         # Process the data to replace organization ID with name

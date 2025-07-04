@@ -119,6 +119,25 @@ aap <resource> set <identifier> [--id <id>] [--name <name>] [--updates...]
 aap <resource> delete <identifier> [--id <id>] [--name <name>]
 ```
 
+### List Command Sorting Requirements
+
+**All list commands MUST sort by ID by default** for consistency across the CLI interface.
+
+**Controller API Implementation**:
+```python
+params['order_by'] = 'id'
+data = client.list_resource(**params)
+```
+
+**Gateway API Implementation**:
+```python
+params['order_by'] = 'id'
+data = client.list_resource(**params)
+# or direct parameter: data = client.list_resource(order_by='id')
+```
+
+This ensures consistent, predictable ordering across all list commands (job, template, credential, organization, user, team, inventory, project).
+
 ### Special Commands
 
 ```bash
