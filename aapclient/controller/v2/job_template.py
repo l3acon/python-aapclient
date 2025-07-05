@@ -50,6 +50,11 @@ class ListJobTemplate(Lister):
             default=False,
             help='List additional fields in output',
         )
+        parser.add_argument(
+            '--limit',
+            type=int,
+            help='Limit the number of results (default: 20)'
+        )
         return parser
 
     def take_action(self, parsed_args):
@@ -60,6 +65,12 @@ class ListJobTemplate(Lister):
             params['organization'] = parsed_args.organization
         if parsed_args.project:
             params['project'] = parsed_args.project
+
+        # Set consistent default limit of 20 (same as job list)
+        if parsed_args.limit:
+            params['page_size'] = parsed_args.limit
+        else:
+            params['page_size'] = 20
 
         # Sort by ID for consistency with other list commands
         params['order_by'] = 'id'

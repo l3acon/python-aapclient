@@ -106,18 +106,67 @@ python-aapclient/
 
 **Files Modified**: `aapclient/common/utils.py`, `aapclient/gateway/v1/team.py`, `aapclient/controller/v2/job_template.py`, `aapclient/gateway/v1/user.py`
 
+### 7. List Command Pagination Consistency (Completed)
+
+**Problem**: Inconsistent default limits across list commands and incomplete template access:
+- `aap job list` defaulted to 20 items
+- `aap template list` defaulted to 25 items (AAP API default)
+- Template list showed only 25 of 39 available templates, missing items visible in GUI
+
+**Solution**: Implemented consistent pagination with `--limit` parameter:
+- **Added `--limit` parameter** to template list command following job list pattern
+- **Standardized default limit** to 20 across all list commands for consistency
+- **Explicit page_size control**: Always sets `page_size=20` when no limit specified
+- **Complete access**: Users can now see all resources with `--limit <high_number>`
+
+**Implementation Pattern**:
+```python
+parser.add_argument('--limit', type=int, help='Limit the number of results (default: 20)')
+
+# In take_action:
+if parsed_args.limit:
+    params['page_size'] = parsed_args.limit
+else:
+    params['page_size'] = 20  # Consistent default
+```
+
+**Files Modified**: `aapclient/controller/v2/job_template.py`
+
 ## Command Patterns & Conventions
 
 ### Standard CRUD Operations
 
 All resources follow consistent command patterns:
 ```bash
-aap <resource> list [--long] [--filters...]
+aap <resource> list [--long] [--limit <number>] [--filters...]
 aap <resource> show <identifier> [--id <id>] [--name <name>]
 aap <resource> create <name> [--options...]
 aap <resource> set <identifier> [--id <id>] [--name <name>] [--updates...]
 aap <resource> delete <identifier> [--id <id>] [--name <name>]
 ```
+
+### List Command Pagination
+
+**All list commands should support consistent pagination**:
+- **Default limit**: 20 results per command
+- **`--limit` parameter**: Allow users to override default
+- **Implementation**: Always set explicit `page_size` to avoid API-specific defaults
+
+**Job List Example** (has --limit):
+```bash
+aap job list                 # Returns 20 jobs (default)
+aap job list --limit 50      # Returns up to 50 jobs
+```
+
+**Template List Example** (has --limit):
+```bash
+aap template list            # Returns 20 templates (default)
+aap template list --limit 50 # Returns up to 50 templates
+```
+
+**Other List Commands** (should be updated to include --limit):
+- `aap project list`, `aap inventory list`, `aap credential list`
+- `aap organization list`, `aap user list`, `aap team list`
 
 ### List Command Sorting Requirements
 
@@ -261,6 +310,7 @@ aap resource show --id 123 "MyResource"  # Should validate they match
 ✅ Enhanced ping command with dual API support
 ✅ GUI-aligned list commands (team, template, user) with matching column layouts
 ✅ Improved duration formatting ("1h 2m 5s" vs "01:02:05")
+✅ List command pagination consistency
 
 ### Architecture Strengths
 
