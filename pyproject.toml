@@ -110,6 +110,13 @@ user_list = "aapclient.gateway.v1.user:ListUser"
 user_show = "aapclient.gateway.v1.user:ShowUser"
 user_set = "aapclient.gateway.v1.user:SetUser"
 
+# Hosts
+host_create = "aapclient.controller.v2.host:CreateHost"
+host_delete = "aapclient.controller.v2.host:DeleteHost"
+host_list = "aapclient.controller.v2.host:ListHost"
+host_show = "aapclient.controller.v2.host:ShowHost"
+host_set = "aapclient.controller.v2.host:SetHost"
+
 [project.entry-points."aap.eda.v1"]
 # EDA Rulebooks
 eda_rulebook_list = "aapclient.eda.v1.rulebook:ListRulebook"

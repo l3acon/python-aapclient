@@ -287,6 +287,27 @@ class Client:
         """Delete a user"""
         self.delete(f'users/{user_id}/')
 
+    # Hosts
+    def list_hosts(self, **params) -> Dict[str, Any]:
+        """List hosts"""
+        return self.get('hosts/', params=params)
+
+    def get_host(self, host_id: int) -> Dict[str, Any]:
+        """Get a specific host"""
+        return self.get(f'hosts/{host_id}/')
+
+    def create_host(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new host"""
+        return self.post('hosts/', data=data)
+
+    def update_host(self, host_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update a host"""
+        return self.patch(f'hosts/{host_id}/', data=data)
+
+    def delete_host(self, host_id: int) -> None:
+        """Delete a host"""
+        self.delete(f'hosts/{host_id}/')
+
 
 def make_client(instance):
     """Factory function for creating client instances"""

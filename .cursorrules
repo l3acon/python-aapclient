@@ -153,6 +153,80 @@ else:
 - Follows established patterns with Lister base class and consistent column formatting
 - Command name follows established pattern consistency with other resource commands
 
+### 10. Host CRUD Commands (Completed)
+
+**Problem**: Users needed comprehensive host management capabilities through the CLI to match the GUI functionality for managing hosts within inventories.
+
+**Solution**: Implemented complete CRUD operations for hosts in the Controller API:
+
+**Commands Added:**
+- `aap host list [--long] [--inventory <id>] [--limit <number>]` - List hosts with filtering and pagination
+- `aap host show <host>` - Display detailed host information (by name or ID)
+- `aap host create <name> --inventory <id> [--description <text>] [--variables <json>] [--enabled/--disabled]` - Create new hosts
+- `aap host set <host> [--name <name>] [--description <text>] [--variables <json>] [--enabled/--disabled]` - Update host properties
+- `aap host delete <host>...` - Delete hosts (supports multiple hosts and name/ID lookup)
+
+**Key Features:**
+- **GUI-aligned columns**: ID, Name, Description, Inventory, Enabled, Variables (with long format showing Created, Modified, Last Job)
+- **Filtering capabilities**: `--inventory` by ID, `--limit` for pagination (default: 20 items)
+- **Dual lookup support**: All commands support both name and ID lookup for flexibility
+- **Variables truncation**: Long variable content is truncated in list view for readability
+- **Enabled/disabled management**: Intuitive `--enabled`/`--disabled` flags for host state management
+- **Bulk operations**: Delete command supports multiple hosts in a single operation
+- **Validation**: Name/ID cross-validation prevents accidental operations on wrong resources
+
+**Files Added:**
+- `aapclient/controller/v2/host.py` - Complete host CRUD command implementations
+- Updated `aapclient/controller/client.py` - Added host API methods (list_hosts, get_host, create_host, update_host, delete_host)
+- Updated `pyproject.toml` - Added host command entry points
+
+**API Integration:**
+- Uses Controller API `/hosts/` endpoint with standard CRUD operations
+- Supports pagination with `page_size` parameter and ID-based sorting
+- Handles inventory relationships and name resolution via summary_fields
+- Graceful error handling for invalid hosts, permissions, and API failures
+
+**Testing Verified:**
+- ✅ List hosts with various filters and formats
+- ✅ Show hosts by both name and ID
+- ✅ Create hosts with required inventory parameter
+- ✅ Update host properties (description, enabled/disabled state)
+- ✅ Delete hosts with confirmation messages
+- ✅ Error handling for invalid inputs and missing resources
+
+**Technical Details:**
+- Follows established CRUD patterns from projects, inventories, and credentials
+- Uses `Lister`, `ShowOne`, and `Command` base classes appropriately
+- Implements consistent ID-based sorting (order_by=id) and 20-item default pagination
+- Variables field supports JSON format with proper error handling
+- Name resolution leverages summary_fields for related object names (inventory, created_by, modified_by)
+
+### 11. List Command Pagination Consistency (Completed)
+
+**Problem**: Inconsistent default limits across list commands and incomplete template access:
+- `aap job list` defaulted to 20 items
+- `aap template list` defaulted to 25 items (AAP API default)
+- Template list showed only 25 of 39 available templates, missing items visible in GUI
+
+**Solution**: Implemented consistent pagination with `--limit` parameter:
+- **Added `--limit` parameter** to template list command following job list pattern
+- **Standardized default limit** to 20 across all list commands for consistency
+- **Explicit page_size control**: Always sets `page_size=20` when no limit specified
+- **Complete access**: Users can now see all resources with `--limit <high_number>`
+
+**Implementation Pattern**:
+```python
+parser.add_argument('--limit', type=int, help='Limit the number of results (default: 20)')
+
+# In take_action:
+if parsed_args.limit:
+    params['page_size'] = parsed_args.limit
+else:
+    params['page_size'] = 20  # Consistent default
+```
+
+**Files Modified**: `aapclient/controller/v2/job_template.py`
+
 ## Command Patterns & Conventions
 
 ### Standard CRUD Operations
@@ -333,6 +407,7 @@ aap resource show --id 123 "MyResource"  # Should validate they match
 ✅ Improved duration formatting ("1h 2m 5s" vs "01:02:05")
 ✅ List command pagination consistency
 ✅ Resource list command
+✅ Host CRUD commands
 
 ### Architecture Strengths
 
