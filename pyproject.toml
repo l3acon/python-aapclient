@@ -51,6 +51,7 @@ gateway = "aapclient.gateway.client"
 # Common commands
 ping = "aapclient.common.ping:Ping"
 whoami = "aapclient.gateway.v1.whoami:Whoami"
+resource_list = "aapclient.common.resource_list:ResourceList"
 
 # Projects
 project_create = "aapclient.controller.v2.project:CreateProject"

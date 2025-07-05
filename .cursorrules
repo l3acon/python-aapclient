@@ -132,6 +132,27 @@ else:
 
 **Files Modified**: `aapclient/controller/v2/job_template.py`
 
+### 8. Resource List Command (Completed)
+
+**Problem**: Users needed a quick overview of all resource types and their counts in their AAP environment without running multiple individual list commands.
+
+**Solution**: Created `aap resource list` command that queries both Controller and Gateway APIs to display total counts for all implemented resource types:
+- **Resource Types** (in order): templates, projects, inventories, credentials, organizations, teams, users
+- **Excludes jobs** (as requested, since they're transient execution records)
+- **Efficient querying**: Uses `page_size=1` to minimize data transfer while getting accurate count
+- **Error handling**: Gracefully handles API failures and displays "Error" for affected resources
+- **Dual API support**: Automatically uses Controller API for automation resources, Gateway API for identity resources
+
+**Files Added:**
+- `aapclient/common/resource_list.py` - Resource list command implementation
+- Updated `pyproject.toml` entry points to register `resource_list = "aapclient.common.resource_list:ResourceList"`
+
+**Technical Details:**
+- Command returns total counts from API `count` field, not just paginated results
+- Uses both `controller_client` and `gateway_client` as appropriate for each resource type
+- Follows established patterns with Lister base class and consistent column formatting
+- Command name follows established pattern consistency with other resource commands
+
 ## Command Patterns & Conventions
 
 ### Standard CRUD Operations
@@ -311,6 +332,7 @@ aap resource show --id 123 "MyResource"  # Should validate they match
 ✅ GUI-aligned list commands (team, template, user) with matching column layouts
 ✅ Improved duration formatting ("1h 2m 5s" vs "01:02:05")
 ✅ List command pagination consistency
+✅ Resource list command
 
 ### Architecture Strengths
 
