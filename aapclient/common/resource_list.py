@@ -41,6 +41,7 @@ class ResourceList(Lister):
             ('Templates', controller_client, 'list_job_templates'),
             ('Projects', controller_client, 'list_projects'),
             ('Inventories', controller_client, 'list_inventories'),
+            ('Hosts', controller_client, 'list_hosts'),
             ('Credentials', controller_client, 'list_credentials'),
             ('Organizations', gateway_client, 'list_organizations'),
             ('Teams', gateway_client, 'list_teams'),

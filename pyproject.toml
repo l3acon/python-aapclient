@@ -1,4 +1,4 @@
-[build-system]
+[abuild-system]
 requires = ["pbr>=6.1.1"]
 build-backend = "pbr.build"
 
@@ -114,6 +114,7 @@ user_set = "aapclient.gateway.v1.user:SetUser"
 host_create = "aapclient.controller.v2.host:CreateHost"
 host_delete = "aapclient.controller.v2.host:DeleteHost"
 host_list = "aapclient.controller.v2.host:ListHost"
+host_metrics = "aapclient.controller.v2.host:HostMetrics"
 host_show = "aapclient.controller.v2.host:ShowHost"
 host_set = "aapclient.controller.v2.host:SetHost"
 

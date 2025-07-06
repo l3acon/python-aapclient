@@ -137,7 +137,7 @@ else:
 **Problem**: Users needed a quick overview of all resource types and their counts in their AAP environment without running multiple individual list commands.
 
 **Solution**: Created `aap resource list` command that queries both Controller and Gateway APIs to display total counts for all implemented resource types:
-- **Resource Types** (in order): templates, projects, inventories, credentials, organizations, teams, users
+- **Resource Types** (in order): templates, projects, inventories, hosts, credentials, organizations, teams, users
 - **Excludes jobs** (as requested, since they're transient execution records)
 - **Efficient querying**: Uses `page_size=1` to minimize data transfer while getting accurate count
 - **Error handling**: Gracefully handles API failures and displays "Error" for affected resources
@@ -152,6 +152,7 @@ else:
 - Uses both `controller_client` and `gateway_client` as appropriate for each resource type
 - Follows established patterns with Lister base class and consistent column formatting
 - Command name follows established pattern consistency with other resource commands
+- Host count integrated after inventories since hosts belong to inventories
 
 ### 10. Host CRUD Commands (Completed)
 
@@ -160,38 +161,57 @@ else:
 **Solution**: Implemented complete CRUD operations for hosts in the Controller API:
 
 **Commands Added:**
-- `aap host list [--long] [--inventory <id>] [--limit <number>]` - List hosts with filtering and pagination
+- `aap host list [--long] [--inventory <id|name>] [--limit <number>]` - List hosts with filtering and pagination
 - `aap host show <host>` - Display detailed host information (by name or ID)
-- `aap host create <name> --inventory <id> [--description <text>] [--variables <json>] [--enabled/--disabled]` - Create new hosts
+- `aap host create <name> --inventory <id|name> [--description <text>] [--variables <json>] [--enabled/--disabled]` - Create new hosts
 - `aap host set <host> [--name <name>] [--description <text>] [--variables <json>] [--enabled/--disabled]` - Update host properties
 - `aap host delete <host>...` - Delete hosts (supports multiple hosts and name/ID lookup)
+- `aap host metrics [--long] [--hostname <hostname>] [--limit <number>]` - Display host automation metrics
 
 **Key Features:**
-- **GUI-aligned columns**: ID, Name, Description, Inventory, Enabled, Variables (with long format showing Created, Modified, Last Job)
-- **Filtering capabilities**: `--inventory` by ID, `--limit` for pagination (default: 20 items)
+- **GUI-aligned columns**:
+  - Host List: ID, Name, Description, Inventory, Enabled
+  - Host Metrics: ID, Hostname, First Automated, Last Automated, Automation Count, Deleted, Deleted Count
+- **Smart inventory resolution**: `--inventory` parameter accepts both names and IDs with automatic resolution
+- **Filtering capabilities**: `--inventory` by ID/name, `--hostname` for metrics, `--limit` for pagination (default: 20 items)
 - **Dual lookup support**: All commands support both name and ID lookup for flexibility
-- **Variables truncation**: Long variable content is truncated in list view for readability
+- **User-friendly messages**: Success messages display host names instead of IDs (e.g., "Host inky.example.com updated")
+- **Enhanced error handling**: Duplicate host creation shows clear error with existing host ID
 - **Enabled/disabled management**: Intuitive `--enabled`/`--disabled` flags for host state management
 - **Bulk operations**: Delete command supports multiple hosts in a single operation
 - **Validation**: Name/ID cross-validation prevents accidental operations on wrong resources
+- **Automation metrics**: Complete visibility into host automation activity including deleted counts
+
+**Enhanced Features (Recent Updates):**
+- **Inventory Name Support**: `--inventory` parameter intelligently handles both names ("Demo Inventory") and IDs (1, 2)
+- **User-Friendly Messages**: `aap host set` displays host names in success messages instead of internal IDs
+- **Improved Error Messages**: Duplicate host creation error format: `Host 'duplicate (ID: 11)' already exists in this inventory`
+- **Host Metrics**: Added comprehensive automation metrics with deleted counter tracking
+- **Resource Integration**: Host count integrated into `aap resource list` command output
 
 **Files Added:**
-- `aapclient/controller/v2/host.py` - Complete host CRUD command implementations
-- Updated `aapclient/controller/client.py` - Added host API methods (list_hosts, get_host, create_host, update_host, delete_host)
+- `aapclient/controller/v2/host.py` - Complete host CRUD command implementations including metrics
+- Updated `aapclient/controller/client.py` - Added host API methods (list_hosts, get_host, create_host, update_host, delete_host, list_host_metrics)
+- Updated `aapclient/common/resource_list.py` - Added host count to resource overview
 - Updated `pyproject.toml` - Added host command entry points
 
 **API Integration:**
 - Uses Controller API `/hosts/` endpoint with standard CRUD operations
+- Uses Controller API `/host_metrics/` endpoint for automation metrics
 - Supports pagination with `page_size` parameter and ID-based sorting
 - Handles inventory relationships and name resolution via summary_fields
 - Graceful error handling for invalid hosts, permissions, and API failures
+- Smart inventory resolution using name-to-ID lookup for enhanced usability
 
 **Testing Verified:**
 - ✅ List hosts with various filters and formats
 - ✅ Show hosts by both name and ID
-- ✅ Create hosts with required inventory parameter
-- ✅ Update host properties (description, enabled/disabled state)
+- ✅ Create hosts with inventory name/ID resolution
+- ✅ Enhanced duplicate host error handling
+- ✅ Update host properties with user-friendly success messages
 - ✅ Delete hosts with confirmation messages
+- ✅ Host metrics command with all columns and filtering
+- ✅ Host count integration in resource list
 - ✅ Error handling for invalid inputs and missing resources
 
 **Technical Details:**
@@ -200,6 +220,8 @@ else:
 - Implements consistent ID-based sorting (order_by=id) and 20-item default pagination
 - Variables field supports JSON format with proper error handling
 - Name resolution leverages summary_fields for related object names (inventory, created_by, modified_by)
+- Metrics command uses `automated_counter` and `deleted_counter` fields from host_metrics endpoint
+- Duplicate detection uses targeted API queries with user-friendly error formatting
 
 ### 11. List Command Pagination Consistency (Completed)
 

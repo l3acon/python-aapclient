@@ -255,7 +255,28 @@ class CreateHost(ShowOne):
                 raise CommandError(f"Invalid JSON in variables: {e}")
 
         # Create the host
-        data = client.create_host(host_data)
+        try:
+            data = client.create_host(host_data)
+        except Exception as e:
+            # Check if this is a duplicate host error
+            if "400" in str(e) or "Bad Request" in str(e):
+                # Check if a host with this name already exists in this inventory
+                try:
+                    existing_hosts = client.list_hosts(name=parsed_args.name, inventory=inventory_id)
+                    if existing_hosts.get('count', 0) > 0:
+                        existing_host = existing_hosts['results'][0]
+                        raise CommandError(
+                            f"Host '{parsed_args.name} (ID: {existing_host['id']})' already exists in this inventory"
+                        )
+                except CommandError:
+                    # Re-raise our custom error
+                    raise
+                except Exception:
+                    # If we can't check for duplicates, fall back to a generic message
+                    pass
+
+            # For other errors or if duplicate check failed, provide a generic error message
+            raise CommandError(f"Failed to create host: {e}")
 
         # Display the created host
         display_data = [
@@ -309,10 +330,14 @@ class SetHost(Command):
         # Find host by name or ID
         if parsed_args.host.isdigit():
             host_id = int(parsed_args.host)
+            # Get host details to obtain the name
+            host_obj = client.get_host(host_id)
+            host_name = host_obj['name']
         else:
             hosts = client.list_hosts(name=parsed_args.host)
             host = utils.find_resource(hosts, parsed_args.host)
             host_id = host['id']
+            host_name = host['name']
 
         # Build update data
         update_data = {}
@@ -341,7 +366,9 @@ class SetHost(Command):
 
         # Update the host
         client.update_host(host_id, update_data)
-        self.app.stdout.write(f"Host {host_id} updated\n")
+        # Use the updated name if the name was changed, otherwise use the original name
+        final_name = update_data.get('name', host_name)
+        self.app.stdout.write(f"Host {final_name} updated\n")
 
 
 class DeleteHost(Command):
@@ -440,3 +467,76 @@ class DeleteHost(Command):
                 self.app.stdout.write(f"Host '{host_name}' (ID: {host_id}) deleted\n")
             except Exception as e:
                 self.app.stdout.write(f"Failed to delete host '{host_name}' (ID: {host_id}): {e}\n")
+
+
+class HostMetrics(Lister):
+    """Display host automation metrics"""
+
+    def get_parser(self, prog_name):
+        parser = super().get_parser(prog_name)
+        parser.add_argument(
+            '--long',
+            action='store_true',
+            default=False,
+            help='List additional fields in output'
+        )
+        parser.add_argument(
+            '--hostname',
+            metavar='<hostname>',
+            help='Filter by hostname'
+        )
+        parser.add_argument(
+            '--limit',
+            type=int,
+            help='Limit the number of results (default: 20)'
+        )
+        return parser
+
+    def take_action(self, parsed_args):
+        client = self.app.client_manager.controller
+
+        params = {}
+        if parsed_args.hostname:
+            params['hostname'] = parsed_args.hostname
+
+        # Set consistent default limit of 20 (same as other list commands)
+        if parsed_args.limit:
+            params['page_size'] = parsed_args.limit
+        else:
+            params['page_size'] = 20
+
+        # Sort by ID for consistency with other list commands
+        params['order_by'] = 'id'
+
+        data = client.list_host_metrics(**params)
+
+        # Standard columns: ID, Hostname, First Automated, Last Automated, Automation Count, Deleted, Deleted Count
+        columns = ('ID', 'Hostname', 'First Automated', 'Last Automated', 'Automation Count', 'Deleted', 'Deleted Count')
+        column_headers = columns
+
+        if parsed_args.long:
+            # Long format adds additional fields
+            columns = ('ID', 'Hostname', 'First Automated', 'Last Automated', 'Automation Count', 'Deleted', 'Deleted Count', 'Created', 'Modified')
+            column_headers = columns
+
+        metrics = []
+        for metric in data.get('results', []):
+            metric_info = [
+                metric['id'],
+                metric.get('hostname', ''),
+                format_datetime(metric.get('first_automation')),
+                format_datetime(metric.get('last_automation')),
+                metric.get('automated_counter', 0),
+                'Yes' if metric.get('deleted', False) else 'No',
+                metric.get('deleted_counter', 0),
+            ]
+
+            if parsed_args.long:
+                metric_info.extend([
+                    format_datetime(metric.get('created')),
+                    format_datetime(metric.get('modified')),
+                ])
+
+            metrics.append(metric_info)
+
+        return (column_headers, metrics)

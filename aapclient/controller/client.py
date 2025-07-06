@@ -308,6 +308,11 @@ class Client:
         """Delete a host"""
         self.delete(f'hosts/{host_id}/')
 
+    # Host Metrics
+    def list_host_metrics(self, **params) -> Dict[str, Any]:
+        """List host metrics"""
+        return self.get('host_metrics/', params=params)
+
 
 def make_client(instance):
     """Factory function for creating client instances"""
